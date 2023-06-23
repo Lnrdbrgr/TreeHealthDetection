@@ -1,0 +1,6 @@
+# Byte-compiled
+__pycache__/
+
+# Folders for personel use only
+Data/
+Scripts/
