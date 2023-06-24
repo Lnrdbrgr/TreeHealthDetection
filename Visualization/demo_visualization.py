@@ -1,6 +1,10 @@
+"""Module to examplarly plot an image with bounding boxes.
+"""
+
 import albumentations as A
 
 from visualization import show_image
+
 
 # specify some transformations if desired
 transforms = A.Compose([
