@@ -17,9 +17,9 @@ pd.options.mode.chained_assignment = None
 
 
 ######## CONFIG ########
-image_path = '../Data/OrthoImages/Finland/Maunulanmaja_ortho.tif'
-labels_path = '../Data/OrthoImages/Finland/Maunulanmaja_ortho_labels.csv'
-location_id = 'maunulanmaja'
+image_path = '../Data/image.tif'
+labels_path = '../Data/image_labels.csv'
+location_id = 'id'
 image_output_folder = '../Data/ProcessedImages/'
 csv_output_folder = '../Data/ProcessedImagesCSVs/'
 out_image_size = 512 # optional, leave default value in doubt

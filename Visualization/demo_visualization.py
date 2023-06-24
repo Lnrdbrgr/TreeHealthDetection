@@ -18,7 +18,7 @@ transforms = A.Compose([
 
 
 # show image
-show_image(image_path='../Data/ProcessedImages/maunulanmaja_img_0038.png',
-           bboxes_path='../Data/ProcessedImagesXMLs/maunulanmaja_img_0038.xml',
+show_image(image_path='../Data/image.png',
+           bboxes_path='../Data/image.xml',
            transformations=transforms,
            show_before_after=True)
