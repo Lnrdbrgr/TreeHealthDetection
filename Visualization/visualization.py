@@ -84,6 +84,7 @@ def show_image(image_path: str,
         else:
             plt.figure()
             plt.imshow(show_image_before)
+            plt.show()
             # Some Trouble with openCV and imshow
             #cv2.imshow('Image', show_image_before)
             #cv2.waitKey(0)
@@ -112,6 +113,7 @@ def show_image(image_path: str,
     else:
         plt.figure()
         plt.imshow(show_image)
+        plt.show()
         # Some Trouble with openCV and imshow
         #cv2.imshow('Image', show_image)
         #cv2.waitKey(0)
