@@ -5,3 +5,4 @@ __pycache__/
 Data/
 Scripts/
 Detection/test_script.ipynb
+Detection/inference_script.ipynb
