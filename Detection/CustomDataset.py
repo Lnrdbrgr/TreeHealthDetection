@@ -7,11 +7,10 @@ import numpy as np
 import os
 import glob as glob
 from torch.utils.data import Dataset
+from typing import Any, Tuple
 
 import pydantic
-from typing import Any
-
-from utils import extract_bboxes_from_xml, resize_boxes
+from xml.etree import ElementTree as et
 
 
 class CustomDataset(Dataset, pydantic.BaseModel):
@@ -67,6 +66,10 @@ class CustomDataset(Dataset, pydantic.BaseModel):
         image_list = values.get('image_list')
         image_format = values.get('image_format')
         if image_list is not None and len(image_list) != 0:
+            if len(image_list) < 5:
+                print(f"""Warning\n Length of specified images is really
+                      small, check that batch size in dataloader corresponds
+                      to number of images in dataset.""")
             # if image list is provided return as images
             values['images'] = sorted(image_list)
             return values
@@ -109,14 +112,14 @@ class CustomDataset(Dataset, pydantic.BaseModel):
         # get box coordinates and labels
         annotations_file_name = '.'.join(image_name.split('.')[:-1]) + '.xml'
         annotations_file_path = self.xml_dir + '/' + annotations_file_name
-        boxes, labels = extract_bboxes_from_xml(bboxes_path=annotations_file_path,
-                                                class_label_name='class_no')
+        boxes, labels = self.extract_bboxes_from_xml(bboxes_path=annotations_file_path,
+                                                     class_label_name='class_no')
         # resize bounding boxes to new measures
         boxes_resized = []
         for box in boxes:
             boxes_resized.append(
-                resize_boxes(box, image_height, image_width,
-                             self.height, self.width)
+                self.resize_boxes(box, image_height, image_width,
+                                  self.height, self.width)
             )
         # move to pytorch tensor for further processing
         boxes = torch.as_tensor(boxes_resized, dtype=torch.float32)
@@ -156,3 +159,70 @@ class CustomDataset(Dataset, pydantic.BaseModel):
             int: Length of the dataset.
         """
         return len(self.images)
+
+    @staticmethod
+    def extract_bboxes_from_xml(bboxes_path: str,
+                            class_label_name: str = 'class_no') -> Tuple[list, list]:
+        """
+        Extract bounding boxes and labels from an XML file.
+
+        Args:
+            bboxes_path (str):
+                Path to the XML file containing bounding boxes.
+                Default = None.
+            class_label_name (str, optional):
+                Name of the tag of the class label in the XML file.
+                Default = 'name'.
+
+        Returns:
+            Tuple[list, list]: Bounding boxes and labels as lists.
+        """
+        # initialize XML reader
+        tree = et.parse(bboxes_path)
+        root = tree.getroot()
+        # initialize emtpy objects to store
+        boxes = []
+        labels = []
+        # extract boxes
+        for member in root.findall('object'):
+            xmin = int(member.find('bndbox').find('xmin').text)
+            xmax = int(member.find('bndbox').find('xmax').text)
+            ymin = int(member.find('bndbox').find('ymin').text)
+            ymax = int(member.find('bndbox').find('ymax').text)
+            labels.append(member.find(class_label_name).text)
+            boxes.append([xmin, ymin, xmax, ymax])
+
+        return boxes, labels
+
+    @staticmethod
+    def resize_boxes(box: list,
+                orig_height: int,
+                orig_width: int,
+                new_height: int,
+                new_width: int) -> list:
+        """
+        Adjust the coordinates of a bounding box depending on the
+        size adjustments of the underlying image.
+
+        Args:
+            box (list):
+                List of coordinates [xmin, ymin, xmax, ymax].
+            orig_height (int):
+                Original height of the image.
+            orig_width (int):
+                Original width of the image.
+            new_height (int):
+                Target height after resizing.
+            new_width (int):
+                Target width after resizing.
+
+        Returns:
+            (list):
+                Adjusted coordinates [xmin, ymin, xmax, ymax].
+        """
+        xmin = (box[0]/orig_width)*new_width
+        ymin = (box[1]/orig_height)*new_height
+        xmax = (box[2]/orig_width)*new_width
+        ymax = (box[3]/orig_height)*new_height
+
+        return [int(xmin), int(ymin), int(xmax), int(ymax)]

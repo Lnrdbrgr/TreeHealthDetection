@@ -4,3 +4,4 @@ __pycache__/
 # Folders for personel use only
 Data/
 Scripts/
+Detection/test_script.ipynb
