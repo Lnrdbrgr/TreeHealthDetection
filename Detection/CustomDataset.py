@@ -1,4 +1,6 @@
-"""
+"""This Module hold the CustomDataset Class which inherits from pytorch
+Dataset for accessing images along with their meta information for
+training or evaluation.
 """
 
 import torch

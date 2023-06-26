@@ -10,7 +10,7 @@ import pandas as pd
 from utils import write_PascalVOC_xml
 
 ######## CONFIG ########
-annotation_csv = '../Data/file.csv'
+annotation_csv = '../Data/ProcessedImagesCSVs/file.csv'
 image_folder = 'ProcessedImagesXMLs/'
 image_path = '../Data/ProcessedImagesXMLs/'
 data_source = 'source'
