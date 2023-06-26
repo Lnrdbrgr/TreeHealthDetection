@@ -94,7 +94,7 @@ def write_PascalVOC_xml(filename: str,
         obj = SubElement(root, 'object')
         # assign class label
         SubElement(obj, 'class_label').text = row['class_label']
-        SubElement(obj, 'class_no').text = row['class_no']
+        SubElement(obj, 'class_no').text = str(row['class_no'])
         # assign optional Pascal VOC specifications
         if 'pose' in bbox_df.columns:
             SubElement(obj, 'pose').text = row['pose']
