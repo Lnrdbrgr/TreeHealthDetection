@@ -107,7 +107,7 @@ if __name__ == '__main__':
                 bboxes_list.append([
                     img_name,
                     row['x_min'], row['x_max'], row['y_min'], row['y_max'],
-                    row['health_status']
+                    row['class_label'], row['class_no']
                 ])
             
             # store image
@@ -124,11 +124,12 @@ if __name__ == '__main__':
     # process label dataframe
     bbox_df = pd.DataFrame(
         bboxes_list,
-        columns=['image', 'x_min', 'x_max', 'y_min', 'y_max', 'health_status']
+        columns=['image', 'x_min', 'x_max', 'y_min', 'y_max',
+                 'class_label', 'class_no']
     )
 
     # show how many trees are present in the new dataset
-    print(bbox_df['health_status'].value_counts())
+    print(bbox_df['class_label'].value_counts())
 
     # save labels as csv
     csv_name = csv_output_folder + 'labels_' + location_id + '.csv'
@@ -145,7 +146,7 @@ if __name__ == '__main__':
         # pick image with min. 2 trees
         display_img = random.choice(
             bbox_df.groupby('image').count() \
-                .query('health_status >= @min_show_tree') \
+                .query('class_label >= @min_show_tree') \
                 .reset_index() \
                 ['image']
         )
@@ -174,12 +175,12 @@ if __name__ == '__main__':
             box = patches.Rectangle(
                 (row['x_min'], row['y_min']),
                 row['x_max']-row['x_min'], row['y_max']-row['y_min'],
-                linewidth=1, edgecolor=col.get(row['health_status']),
+                linewidth=1, edgecolor=col.get(row['class_label']),
                 facecolor='none'
             )
             ax.add_patch(box)
 
         print('Done ✓')
-
+        
         # show image
         plt.show()
