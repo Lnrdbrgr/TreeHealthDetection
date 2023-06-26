@@ -1,6 +1,7 @@
 """
 """
 
+import numpy as np
 import torch
 
 from models import create_FasterRCNN_model
@@ -36,17 +37,36 @@ model = model.to(device)
 params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_decay)
 
+# initiate loop objects
+training_loss = []
+validation_loss = []
+train_MAP = []
+validation_MAP = []
+
 
 # train the model
 for epoch in range(num_epochs):
-    # set the model to training modus
-    model.train()
-    for data in train_loader:
+
+    val_loss = []
+    train_loss = []
+    # check model performance on validation set
+    for data in validation_loader:
+        # set the model to eval modus
+        model.eval()
+        # extract the data
+        images, target = data
+        images = list(image.to(device) for image in images)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in target]
+        # extract the losses
         with torch.no_grad():
-            pass
-            # ToDo: evaluation with validation dataset
-            # go through everything in validation loader, store and make average
-            
+            val_loss_dict = model(images, targets)
+            val_loss.append(sum(loss for loss in val_loss_dict.values()))
+    validation_loss.append(np.mean(val_loss))
+        
+
+    for data in train_loader:            
+        # set the model to training modus
+        model.train()
         # set the optimizer
         optimizer.zero_grad()
         # extract the data
@@ -56,16 +76,23 @@ for epoch in range(num_epochs):
 
         # extract the losses
         loss_dict = model(images, targets)
-        losses = sum(loss for loss in loss_dict.values())
+        loss = sum(loss for loss in loss_dict.values())
+        with torch.no_grad():
+            train_loss.append(loss)
 
         # do the magic
-        losses.backward()
+        loss.backward()
         optimizer.step()
+    train_loss.append(np.mean(train_loss))
 
     # Response
     print(f'Epoch: {epoch}')
-    print(losses)
+    print(train_loss)
 
     if epoch == (num_epochs-1):
         torch.save(model, './SavedModels/model.pth')
         print(f"""Model Saved ✓""")
+
+        # Bug somewhere, doesnt print in Colab
+        print(validation_loss)
+        print(training_loss)
