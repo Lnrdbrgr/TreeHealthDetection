@@ -9,7 +9,7 @@ import glob as glob
 from torch.utils.data import Dataset
 
 import pydantic
-from typing import Any, Union
+from typing import Any
 
 from utils import extract_bboxes_from_xml, resize_boxes
 
@@ -39,7 +39,7 @@ class CustomDataset(Dataset, pydantic.BaseModel):
             Default = None.
     """
     image_dir: str
-    image_list: list[str] | None = None
+    image_list: list | None = None
     xml_dir: str
     image_format: str
     height: int
@@ -110,7 +110,7 @@ class CustomDataset(Dataset, pydantic.BaseModel):
         annotations_file_name = '.'.join(image_name.split('.')[:-1]) + '.xml'
         annotations_file_path = self.xml_dir + '/' + annotations_file_name
         boxes, labels = extract_bboxes_from_xml(bboxes_path=annotations_file_path,
-                                                class_label_name='name')
+                                                class_label_name='class_no')
         # resize bounding boxes to new measures
         boxes_resized = []
         for box in boxes:
@@ -121,14 +121,38 @@ class CustomDataset(Dataset, pydantic.BaseModel):
         # move to pytorch tensor for further processing
         boxes = torch.as_tensor(boxes_resized, dtype=torch.float32)
         # get area of boxes
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[: 2] - boxes[: 0])
+        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
         # initiate crowd instance
         # (for overlapping objects, not applicable here yet)
         iscrowd = torch.zeros((boxes.shape[0],), dtype=torch.int64)
         # labels to tensor
-        list(map(int, labels))
-        
+        labels = list(map(int, labels))
+        labels = torch.as_tensor(labels, dtype=torch.int64)
 
-        
+        # prepare the target dictionary
+        target = {}
+        target['boxes'] = boxes
+        target['labels'] = labels
+        target['area'] = area
+        target['iscrowd'] = iscrowd
+        image_id = torch.tensor([index])
+        target['image_id'] = image_id
 
+        # apply transformers
+        if self.transforms:
+            transformed_image = self.transforms(image=image_resized,
+                                                bboxes=target['boxes'],
+                                                labels=labels)
+            image_resized = transformed_image['image']
+            target['boxes'] = torch.Tensor(transformed_image['bboxes'])
 
+        return image_resized, target
+    
+    def __len__(self) -> int:
+        """
+        Get the length of the dataset.
+
+        Returns:
+            int: Length of the dataset.
+        """
+        return len(self.images)

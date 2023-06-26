@@ -2,11 +2,12 @@
 and model training phase.
 """
 
+from typing import Tuple, Any
 from xml.etree import ElementTree as et
 
 
 def extract_bboxes_from_xml(bboxes_path: str,
-                            class_label_name: str = 'name') -> tuple[list, list]:
+                            class_label_name: str = 'class_no') -> Tuple[list, list]:
     """
     Extract bounding boxes and labels from an XML file.
 
@@ -19,7 +20,7 @@ def extract_bboxes_from_xml(bboxes_path: str,
             Default = 'name'.
 
     Returns:
-        tuple[list, list]: Bounding boxes and labels as lists.
+        Tuple[list, list]: Bounding boxes and labels as lists.
     """
     # initialize XML reader
     tree = et.parse(bboxes_path)
@@ -70,5 +71,28 @@ def resize_boxes(box: list,
     ymax = (box[3]/orig_height)*new_height
 
     return [int(xmin), int(ymin), int(xmax), int(ymax)]
+
+
+def collate_fn(batch: Any) -> Tuple:
+  """
+  Collate function for data loading and handling different images with varying
+  classes and sizes.
+
+  This function is used in conjunction with a PyTorch DataLoader to process a
+  batch of samples. It takes a batch of samples, where each sample is a tuple
+  containing an image and its associated data, and performs necessary operations
+  to handle variations in image sizes and classes.
+
+  Args:
+      batch (Any):
+          A batch of samples to be collated.
+
+  Returns:
+      Tuple: 
+          A tuple containing the collated data. The data is organized in a way
+          that handles different tensor shapes in the output, ensuring
+          consistency across the batch.
+  """
+  return tuple(zip(*batch))
 
 
