@@ -12,6 +12,7 @@ from transformations import train_transforms,  test_train_transforms, \
     validation_transforms
 from utils import create_dataloader, evaluate_loss, train_one_epoch, \
     write_out_results
+from evaluation_utils import evaluate_coco_MAP
 
 ######## CONFIG ########
 model = create_FasterRCNN_model(3)
@@ -47,7 +48,7 @@ optimizer = torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_deca
 # initiate loop objects
 training_loss = []
 validation_loss = []
-train_MAP = []
+training_MAP = []
 validation_MAP = []
 
 # train the model
@@ -56,6 +57,13 @@ for epoch in range(num_epochs):
     # store training and validation loss
     training_loss.append(evaluate_loss(model, train_loader, device))
     validation_loss.append(evaluate_loss(model, validation_loader, device))
+
+    # store training and validation MAP
+    print('MAP validation started - training')
+    training_MAP.append(evaluate_coco_MAP(model, train_loader, device))
+    print('MAP validation started - validation')
+    validation_MAP.append(evaluate_coco_MAP(model, validation_loader, device))
+    print('Done')
 
     # train the model
     train_one_epoch(model, train_loader, device, optimizer)
