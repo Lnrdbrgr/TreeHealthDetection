@@ -6,3 +6,6 @@ Data/
 Scripts/
 Detection/test_script.ipynb
 Detection/inference_script.ipynb
+
+# Git
+.gitignore
