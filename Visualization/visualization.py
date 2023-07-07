@@ -24,22 +24,22 @@ def show_image(image_path: str,
             Path to the image file.
         bboxes_path (str, optional):
             Path to the XML file containing bounding boxes.
-            Defaults to None.
+            Default = None.
         class_label_name (str, optional):
             Name of the class label in the XML file.
-            Defaults to 'name'.
+            Default = 'name'.
         resize_to (Tuple[int, int], optional):
             Target size for resizing the image.
-            Defaults to None.
+            Default = None.
         transformations (any, optional):
             Image transformation function.
             Defaults to None.
         show_before_after (bool, optional):
             Whether to display a before/after comparison.
-            Defaults to False.
+            Default = False.
         env_google_colab (bool, optional):
             Flag indicating if the code is running in Google Colab environment.
-            Defaults to False.
+            Default = False.
 
     Returns:
         None
@@ -128,13 +128,13 @@ def extract_bboxes_from_xml(bboxes_path: str,
     Args:
         bboxes_path (str):
             Path to the XML file containing bounding boxes.
-            Defaults to None.
+            Default = None.
         class_label_name (str, optional):
             Name of the class label in the XML file.
-            Defaults to 'name'.
+            Default = 'name'.
         resize_to (tuple, optional):
             Target size for resizing the image.
-            Defaults to None.
+            Default = None.
 
     Returns:
         Tuple[list, list]: Bounding boxes and labels as lists.

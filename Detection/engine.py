@@ -1,18 +1,23 @@
-"""
+"""Script for model training.
 """
 
+from datetime import datetime
 import numpy as np
+import pandas as pd
 import torch
+import os
 
 from models import create_FasterRCNN_model
 from transformations import test_train_transforms, validation_transforms
-from utils import create_dataloader
+from utils import create_dataloader, evaluate_loss, train_one_epoch
 
 ######## CONFIG ########
 model = create_FasterRCNN_model(3)
 learning_rate=0.0001
 weight_decay=0.0005
 num_epochs = 15
+output_save_dir = 'Output'
+run_name = str(datetime.now().strftime("%Y%m%d_%H%M"))
 ######## CONFIG ########
 
 # create dataloader
@@ -43,56 +48,29 @@ validation_loss = []
 train_MAP = []
 validation_MAP = []
 
-
 # train the model
 for epoch in range(num_epochs):
 
-    val_loss = []
-    train_loss = []
-    # check model performance on validation set
-    for data in validation_loader:
-        # set the model to eval modus
-        model.eval()
-        # extract the data
-        images, target = data
-        images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in target]
-        # extract the losses
-        with torch.no_grad():
-            val_loss_dict = model(images, targets)
-            val_loss.append(sum(loss for loss in val_loss_dict.values()))
-    validation_loss.append(np.mean(val_loss))
-        
+    # store training and validation loss
+    training_loss.append(evaluate_loss(model, train_loader, device))
+    validation_loss.append(evaluate_loss(model, validation_loader, device))
 
-    for data in train_loader:            
-        # set the model to training modus
-        model.train()
-        # set the optimizer
-        optimizer.zero_grad()
-        # extract the data
-        images, target = data
-        images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in target]
-
-        # extract the losses
-        loss_dict = model(images, targets)
-        loss = sum(loss for loss in loss_dict.values())
-        with torch.no_grad():
-            train_loss.append(loss)
-
-        # do the magic
-        loss.backward()
-        optimizer.step()
-    train_loss.append(np.mean(train_loss))
+    # train the model
+    train_one_epoch(model, train_loader, device, optimizer)
 
     # Response
-    print(f'Epoch: {epoch}')
-    print(train_loss)
+    print(f"""Epoch: {epoch}
+          Training Loss: {training_loss[-1]}
+          Validation Loss: {validation_loss[-1]}""")
 
     if epoch == (num_epochs-1):
-        torch.save(model, './SavedModels/model.pth')
+        save_direc = os.path.join(os.getcwd(), output_save_dir, run_name)
+        if not os.path.exists(save_direc):
+            os.makedirs(save_direc)
+        torch.save(model, os.path.join(save_direc, 'model.pth'))
         print(f"""Model Saved ✓""")
-
-        # Bug somewhere, doesnt print in Colab
-        print(validation_loss)
-        print(training_loss)
+        loss_df = pd.DataFrame({'Epoch': range(len(training_loss)),
+                                'TrainingLoss': training_loss,
+                                'ValidationLoss': validation_loss})
+        loss_df.to_csv(os.path.join(save_direc, 'loss_df.csv'))
+        print(f"""Loss Saved ✓""")

@@ -2,8 +2,10 @@
 and model training phase.
 """
 
+import numpy as np
 import os
 import random
+import torch
 from torch.utils.data import DataLoader
 from typing import Tuple, Any
 from xml.etree import ElementTree as et
@@ -159,3 +161,34 @@ def create_dataloader(train_img_directory: str,
     )
 
     return train_loader, validation_loader
+
+
+def evaluate_loss(model, data_loader, device):
+    """Evaluate the average loss of a model on a given data loader.
+
+    Args:
+        model (torch.nn.Module):
+            The model to evaluate.
+        data_loader (torch.utils.data.DataLoader):
+            The data loader containing the evaluation data.
+        device (torch.device):
+            The device to use for evaluation (e.g., 'cpu' or 'cuda').
+
+    Returns:
+        float:
+            The average loss value.
+    """
+    with torch.no_grad():
+        loss = []
+        for data in data_loader:
+            # set the model to train modus, to obtain loss
+            model.train()
+            # extract the data
+            images, targets = data
+            images = list(image.to(device) for image in images)
+            targets = [{k: v.to(device) for k, v in target.items()} for target in targets]
+            # extract the losses
+            loss_dict = model(images, targets)
+            loss.append(sum(loss for loss in loss_dict.values()))
+        # return average
+        return np.mean(loss)

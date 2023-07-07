@@ -10,7 +10,7 @@ from visualization import show_image
 transforms = A.Compose([
     A.VerticalFlip(p=0.5),
     A.HorizontalFlip(p=0.5),
-    A.RandomSizedCrop((220, 350), 512, 512, p=0.2),
+    #A.RandomSizedCrop((220, 350), 512, 512, p=0.2),
 ], bbox_params={
     'format': 'pascal_voc',
     'label_fields': ['labels']
