@@ -4,6 +4,7 @@ and model training phase.
 
 import numpy as np
 import os
+import pandas as pd
 import random
 import torch
 from torch.utils.data import DataLoader
@@ -163,7 +164,9 @@ def create_dataloader(train_img_directory: str,
     return train_loader, validation_loader
 
 
-def evaluate_loss(model, data_loader, device):
+def evaluate_loss(model: torch.nn.Module,
+                  data_loader: torch.utils.data.DataLoader,
+                  device: torch.device) -> float:
     """Evaluate the average loss of a model on a given data loader.
 
     Args:
@@ -189,12 +192,16 @@ def evaluate_loss(model, data_loader, device):
             targets = [{k: v.to(device) for k, v in target.items()} for target in targets]
             # extract the losses
             loss_dict = model(images, targets)
-            loss.append(sum(loss for loss in loss_dict.values()))
+            loss_sum = sum(loss for loss in loss_dict.values()).cpu()
+            loss.append(loss_sum)
         # return average
         return np.mean(loss)
     
 
-def train_one_epoch(model, data_loader, device, optimizer):
+def train_one_epoch(model: torch.nn.Module,
+                    data_loader: torch.utils.data.DataLoader,
+                    device: torch.device,
+                    optimizer: torch.optim.Optimizer) -> None:
     """Train the model for one epoch using the given data
     loader and optimizer.
 
@@ -203,7 +210,7 @@ def train_one_epoch(model, data_loader, device, optimizer):
             The model to train.
         data_loader (torch.utils.data.DataLoader):
             The data loader containing the training data.
-        device (torch.device):s
+        device (torch.device):
             The device to use for training (e.g., 'cpu' or 'cuda').
         optimizer (torch.optim.Optimizer):
             The optimizer to use for parameter updates.
@@ -224,3 +231,45 @@ def train_one_epoch(model, data_loader, device, optimizer):
         loss.backward()
         optimizer.step()
 
+
+def write_out_results(model: torch.nn.Module,
+                      output_directory: str,
+                      run_name: str,
+                      training_loss: list = None,
+                      validation_loss: list = None,
+                      optimizer: torch.optim.Optimizer = None) -> None:
+    """Write out the model, loss, and optimizer data to
+    the specified output directory.
+
+    Args:
+        model (torch.nn.Module):
+            The model to save.
+        output_directory (str):
+            The directory to save the model and data.
+        run_name (str):
+            The name of the current run or experiment.
+        training_loss (list, optional):
+            The list of training loss values for each epoch.
+        validation_loss (list, optional):
+            The list of validation loss values for each epoch.
+        optimizer (torch.optim.Optimizer, optional):
+            The optimizer used for training.
+    """
+    # generate output directory
+    save_direc = os.path.join(os.getcwd(), output_directory, run_name)
+    # make directory if not exists
+    if not os.path.exists(save_direc):
+        os.makedirs(save_direc)
+    # save model
+    torch.save(model, os.path.join(save_direc, 'model.pth'))
+    print(f"""Model Saved ✓""")
+    if training_loss or validation_loss:
+        loss_df = pd.DataFrame({'Epoch': range(len(training_loss)),
+                                'TrainingLoss': training_loss,
+                                'ValidationLoss': validation_loss})
+        loss_df.to_csv(os.path.join(save_direc, 'loss_df.csv'), index=False)
+        print(f"""Loss Saved ✓""")
+    if optimizer:
+        with open(os.path.join(save_direc, 'optimizer.txt'), 'w+') as f:
+            print(optimizer, file=f)
+        print(f"""Optimizer Data Saved ✓""")
