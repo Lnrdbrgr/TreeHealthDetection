@@ -192,3 +192,35 @@ def evaluate_loss(model, data_loader, device):
             loss.append(sum(loss for loss in loss_dict.values()))
         # return average
         return np.mean(loss)
+    
+
+def train_one_epoch(model, data_loader, device, optimizer):
+    """Train the model for one epoch using the given data
+    loader and optimizer.
+
+    Args:
+        model (torch.nn.Module):
+            The model to train.
+        data_loader (torch.utils.data.DataLoader):
+            The data loader containing the training data.
+        device (torch.device):s
+            The device to use for training (e.g., 'cpu' or 'cuda').
+        optimizer (torch.optim.Optimizer):
+            The optimizer to use for parameter updates.
+    """
+    # set model to training modus
+    model.train()
+    for data in data_loader:
+        # set the optimizer
+        optimizer.zero_grad()
+        # extract the data
+        images, targets = data
+        images = list(image.to(device) for image in images)
+        targets = [{k: v.to(device) for k, v in target.items()} for target in targets]
+        # extract the loss
+        loss_dict = model(images, targets)
+        loss = sum(loss for loss in loss_dict.values())
+        # do the magic
+        loss.backward()
+        optimizer.step()
+
