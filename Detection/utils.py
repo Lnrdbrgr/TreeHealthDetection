@@ -151,7 +151,7 @@ def create_dataloader(train_img_directory: str,
     train_loader = DataLoader(
         dataset=train_dataset,
         batch_size=train_batch_size,
-        shuffle=True,
+        shuffle=False,
         collate_fn=collate_fn
     )
     validation_loader = DataLoader(
@@ -235,9 +235,13 @@ def train_one_epoch(model: torch.nn.Module,
 def write_out_results(model: torch.nn.Module,
                       output_directory: str,
                       run_name: str,
+                      epoch: int = None,
                       training_loss: list = None,
                       validation_loss: list = None,
-                      optimizer: torch.optim.Optimizer = None) -> None:
+                      training_MAP: list = None,
+                      validation_MAP: list = None,
+                      optimizer: torch.optim.Optimizer = None,
+                      train_transformations = None) -> None:
     """Write out the model, loss, and optimizer data to
     the specified output directory.
 
@@ -252,6 +256,10 @@ def write_out_results(model: torch.nn.Module,
             The list of training loss values for each epoch.
         validation_loss (list, optional):
             The list of validation loss values for each epoch.
+        training_MAP (list, optional):
+            The list of training MAP values for each epoch.
+        validation_MAP (list, optional):
+            The list of validation MAP values for each epoch.
         optimizer (torch.optim.Optimizer, optional):
             The optimizer used for training.
     """
@@ -260,8 +268,12 @@ def write_out_results(model: torch.nn.Module,
     # make directory if not exists
     if not os.path.exists(save_direc):
         os.makedirs(save_direc)
+    # make model saving directory
+    model_save_direc = os.path.join(os.getcwd(), output_directory, run_name, 'models')
+    if not os.path.exists(model_save_direc):
+        os.makedirs(model_save_direc)
     # save model
-    torch.save(model, os.path.join(save_direc, 'model.pth'))
+    torch.save(model, os.path.join(model_save_direc, ('epoch_' + str(epoch) + '_model.pth')))
     print(f"""Model Saved ✓""")
     if training_loss or validation_loss:
         loss_df = pd.DataFrame({'Epoch': range(len(training_loss)),
@@ -269,7 +281,49 @@ def write_out_results(model: torch.nn.Module,
                                 'ValidationLoss': validation_loss})
         loss_df.to_csv(os.path.join(save_direc, 'loss_df.csv'), index=False)
         print(f"""Loss Saved ✓""")
+    if training_MAP:
+        training_MAP = transform_dict(training_MAP)
+        training_MAP_df = pd.DataFrame(training_MAP)
+        training_MAP_df.to_csv(os.path.join(save_direc, 'training_MAP.csv'),
+                               index=False)
+        print(f"""Training MAP Saved ✓""")
+    if validation_MAP:
+        validation_MAP = transform_dict(validation_MAP)
+        validation_MAP_df = pd.DataFrame(validation_MAP)
+        validation_MAP_df.to_csv(os.path.join(save_direc, 'validation_MAP.csv'),
+                                 index=False)
+        print(f"""Validation MAP Saved ✓""")
     if optimizer:
         with open(os.path.join(save_direc, 'optimizer.txt'), 'w+') as f:
             print(optimizer, file=f)
         print(f"""Optimizer Data Saved ✓""")
+    if train_transformations:
+        with open(os.path.join(save_direc, 'transformations.txt'), 'w+') as f:
+            print(train_transformations, file=f)
+        print(f"""Transformations Data Saved ✓""")
+
+
+def append_dicts(dict1, dict2):
+    for key, value in dict2.items():
+        if key in dict1:
+            if isinstance(dict1[key], list):
+                dict1[key].append(value)
+            else:
+                dict1[key] = [dict1[key], value]
+        else:
+            dict1[key] = value
+
+
+def transform_dict(dict):
+    new_dict = {}
+
+    # Loop through the original dictionary and extract numerical values
+    for key, value in dict.items():
+        # Check if the value is a list containing tensors
+        if isinstance(value[0], torch.Tensor):
+            new_dict[key] = [tensor.item() if (len(tensor.shape) == 0) else tensor.tolist() for tensor in value]
+        else:
+            # If it's not a tensor list, just assign the original value
+            new_dict[key] = value
+    
+    return new_dict
