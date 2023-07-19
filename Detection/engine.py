@@ -10,7 +10,7 @@ from transformations import train_transforms,  test_train_transforms, \
     validation_transforms
 from utils import create_dataloader, evaluate_loss, train_one_epoch, \
     write_out_results, append_dicts
-from evaluation_utils import evaluate_coco_MAP, evaluate_MAP
+from evaluation_utils import evaluate_MAP
 
 ######## CONFIG ########
 model = create_FasterRCNN_model(3)
