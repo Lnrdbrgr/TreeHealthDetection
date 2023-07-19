@@ -5,43 +5,65 @@ import numpy as np
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 import torch
+from torchmetrics.detection import MeanAveragePrecision
+
+
+def evaluate_MAP(model, dataloader, device):
+    """
+    """
+    MAP_class = MeanAveragePrecision()
+    with torch.no_grad():
+        model.eval()
+        for images, target in dataloader:
+            images = list(image.to(device) for image in images)
+            predictions = model(images)
+            predictions = [{k: v.to(torch.device("cpu")) for k, v in \
+                            t.items()} for t in predictions]
+            MAP_class.update(preds=predictions, target=list(target))
+        map = MAP_class.compute()
+    return map
 
 
 def evaluate_coco_MAP(model, dataloader, device):
     """
     """
-    # set model to evaluation mode
-    model.eval()
-    # extract ground truth data
-    coco_api_dataset = convert_to_coco_api(dataloader.dataset)
-    coco_eval = COCOeval(cocoGt=coco_api_dataset, iouType='bbox')
-    eval_stats = []
+    with torch.no_grad():
+        # set model to evaluation mode
+        model.eval()
+        # extract ground truth data
+        coco_api_dataset = convert_to_coco_api(dataloader.dataset)
+        coco_eval = COCOeval(cocoGt=coco_api_dataset, iouType='bbox')
+        #eval_stats = []
+        all_predictions = {}
 
-    # loop through validation set and compute MAP
-    for data in dataloader:
-        # extract the data
-        images, targets = data
-        images = list(image.to(device) for image in images)
-        # make bbox predictions
-        predictions = model(images)
-        # move to cpu
-        predictions = [{k: v.to(torch.device('cpu')) for k, v in pred.items()} for pred in predictions]
-        targets = [{k: v.to(torch.device('cpu')) for k, v in target.items()} for target in targets]
-        # pair with image id
-        predictions = {target['image_id'].item(): pred for target, pred in zip(targets, predictions)}
+        # loop through data set and compute MAP
+        for data in dataloader:
+            # extract the data
+            images, targets = data
+            images = list(image.to(device) for image in images)
+            # make bbox predictions
+            predictions = model(images)
+            # move to cpu
+            predictions = [{k: v.to(torch.device('cpu')) for k, v in pred.items()} for pred in predictions]
+            targets = [{k: v.to(torch.device('cpu')) for k, v in target.items()} for target in targets]
+            # pair with image id
+            predictions = {target['image_id'].item(): pred for target, pred in zip(targets, predictions)}
+            # append to all predictions
+            all_predictions.update(predictions)
         # make coco compatible
-        results = prepare_for_coco_detection(predictions)
+        results = prepare_for_coco_detection(all_predictions)
         # add to coco evaluation class
         coco_dt = COCO.loadRes(coco_api_dataset, results)
         coco_eval.cocoDt = coco_dt
         coco_eval.evaluate()
         coco_eval.accumulate()
         coco_eval.summarize()
-        eval_stats.append(coco_eval.stats)
+        #eval_stats.append(coco_eval.stats)
 
-    # return average MAP over all images
-    mean_eval_stats = np.array(eval_stats).mean(axis=0)
-    return mean_eval_stats
+        # return average MAP over all images
+        #mean_eval_stats = np.array(eval_stats).mean(axis=0)
+        #return mean_eval_stats
+        return coco_eval.stats
 
 
 def convert_to_coco_api(ds):
