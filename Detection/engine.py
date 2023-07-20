@@ -19,7 +19,7 @@ weight_decay=0.0005
 num_epochs = int(input('Number of Epochs: '))
 output_save_dir = 'Output'
 run_name = str(datetime.now().strftime("%Y%m%d_%H%M"))
-train_transformations = test_train_transforms
+train_transformations = train_transforms
 ######## CONFIG ########
 
 # create dataloader
@@ -74,10 +74,10 @@ for epoch in range(num_epochs):
     print(f"""Epoch: {epoch}
           Training Loss: {training_loss}
           Validation Loss: {validation_loss}
-          Training MAP50:95: {training_MAP_dict['map']}
-          Validation MAP50:95: {validation_MAP_dict['map']}
-          Training MAP50: {training_MAP_dict['map_50']}
-          Validation MAP50: {validation_MAP_dict['map_50']}""")
+          Training MAP50:95: {training_MAP_dict['map'][-5:]}
+          Validation MAP50:95: {validation_MAP_dict['map'][-5:]}
+          Training MAP50: {training_MAP_dict['map_50'][-5:]}
+          Validation MAP50: {validation_MAP_dict['map_50'][-5:]}""")
 
     # write out model after every epoch
     write_out_results(
