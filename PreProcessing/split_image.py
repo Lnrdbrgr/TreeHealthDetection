@@ -17,7 +17,7 @@ pd.options.mode.chained_assignment = None
 
 
 ######## CONFIG ########
-image_path = '../Data/OrthoImages/HBG_loc2_23-05-26/odm_orthophoto/odm_orthophoto.tif'
+image_path = '../Data/OrthoImages/location_id/odm_orthophoto/odm_orthophoto.tif'
 labels_path = '../Data/OrthoImages/HBG_loc2_23-05-26/labels.csv'
 location_id = 'HBG_loc2_23-05-26'
 image_output_folder = '../Data/ProcessedImages/'
