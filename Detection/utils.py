@@ -303,7 +303,17 @@ def write_out_results(model: torch.nn.Module,
         print(f"""Transformations Data Saved ✓""")
 
 
-def append_dicts(dict1, dict2):
+def append_dicts(dict1: dict,
+                 dict2: dict) -> None:
+    """Appends two dictionaries and their values as lists
+    when the keys are identical.
+
+    Args:
+        dict1 (dict):
+            Dictionary that should be extended.
+        dict2 (dict):
+            Dictionary that should be appended.
+    """
     for key, value in dict2.items():
         if key in dict1:
             if isinstance(dict1[key], list):
@@ -314,9 +324,20 @@ def append_dicts(dict1, dict2):
             dict1[key] = value
 
 
-def transform_dict(dict):
-    new_dict = {}
+def transform_dict(dict: dict) -> dict:
+    """Given a dictionary where the values are list of torch tensors
+    or torch tensors, the values are transformed to scalar values or
+    pythonic lists.
 
+    Args:
+        dict (dict):
+            Dictionary of interest.
+    Returns:
+        new_dict (dict):
+            Dictionary with default pythonic values instead of torch
+            tensors.
+    """
+    new_dict = {}
     # Loop through the original dictionary and extract numerical values
     for key, value in dict.items():
         # Check if the value is a list containing tensors
@@ -325,5 +346,4 @@ def transform_dict(dict):
         else:
             # If it's not a tensor list, just assign the original value
             new_dict[key] = value
-    
     return new_dict
