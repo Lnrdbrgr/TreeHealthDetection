@@ -19,7 +19,7 @@ pd.options.mode.chained_assignment = None
 ######## CONFIG ########
 image_path = '../Data/OrthoImages/location_id/odm_orthophoto/odm_orthophoto.tif'
 labels_path = '../Data/OrthoImages/location_id/labels.csv'
-location_id = 'HBG_loc2_23-05-26'
+location_id = 'location_id'
 image_output_folder = '../Data/ProcessedImages/'
 csv_output_folder = '../Data/ProcessedImagesCSVs/'
 out_image_size = 512 # optional, leave default value in doubt
