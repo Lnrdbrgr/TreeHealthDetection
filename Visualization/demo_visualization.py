@@ -20,5 +20,5 @@ transforms = A.Compose([
 # show image
 show_image(image_path='../Data/image.png',
            bboxes_path='../Data/image.xml',
-           transformations=transforms,
+           #transformations=transforms,
            show_before_after=True)
