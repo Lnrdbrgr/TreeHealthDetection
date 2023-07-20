@@ -48,7 +48,7 @@ def show_image(image_path: str,
     if env_google_colab:
         from google.colab.patches import cv2_imshow
     # get image
-    image = cv2.imread(image_path)
+    image = plt.imread(image_path)
     # get bounding boxes if applicable
     if bboxes_path:
         # get boxes
