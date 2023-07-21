@@ -79,13 +79,14 @@ for epoch in range(num_epochs):
           Training MAP50: {training_MAP_dict['map_50'][-5:]}
           Validation MAP50: {validation_MAP_dict['map_50'][-5:]}""")
 
-    # write out model after every epoch
-    write_out_results(
-            model=model,
-            output_directory=output_save_dir,
-            run_name=run_name,
-            epoch=epoch
-    )
+    # write out model after every second epoch
+    if (epoch%2 == 0):
+        write_out_results(
+                model=model,
+                output_directory=output_save_dir,
+                run_name=run_name,
+                epoch=epoch
+        )
     # save results on last epoch
     if epoch == (num_epochs-1):
         write_out_results(
