@@ -37,15 +37,20 @@ print(f"""Training and Validation Data Loader initialized ✓""")
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(f"""Device: {device} ✓""")
 
-# initiate model
+# initialize model
 model = model.to(device)
 
-# initiate optimizer
+# initialize optimizer
 params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.AdamW(params, lr=learning_rate,
                               weight_decay=weight_decay)
 
-# initiate loop objects
+# initialize learning rate scheduler
+lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+                                               step_size=3,
+                                               gamma=0.1)
+
+# initialize loop objects
 training_loss = []
 validation_loss = []
 training_MAP_dict = {}
@@ -60,6 +65,9 @@ for epoch in range(num_epochs):
 
     # train the model
     train_one_epoch(model, train_loader, device, optimizer)
+
+    # update the learning rate
+    lr_scheduler.step()
 
     # store evaluation metrics
     eval_model = copy.deepcopy(model)
