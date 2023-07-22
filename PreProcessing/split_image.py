@@ -17,9 +17,9 @@ pd.options.mode.chained_assignment = None
 
 
 ######## CONFIG ########
-image_path = '../Data/OrthoImages/location_id/odm_orthophoto/odm_orthophoto.tif'
-labels_path = '../Data/OrthoImages/location_id/labels.csv'
-location_id = 'location_id'
+location_id = 'Hachenburg_loc2_23-05-26'
+image_path = '../Data/OrthoImages/' + location_id + '/odm_orthophoto/odm_orthophoto.tif'
+labels_path = '../Data/OrthoImages/' + location_id + '/labels.csv'
 image_output_folder = '../Data/ProcessedImages/'
 csv_output_folder = '../Data/ProcessedImagesCSVs/'
 out_image_size = 512 # optional, leave default value in doubt
@@ -67,7 +67,7 @@ if __name__ == '__main__':
                 (label_data['x_max'].between(x_range[0], x_range[1]))) &
                 ((label_data['y_min'].between(y_range[0], y_range[1])) |
                 (label_data['y_max'].between(y_range[0], y_range[1])))
-            ]
+            ].copy()
 
             # if there are no bboxes/trees in the image region jump to next image
             if not crop_pixels.shape[0] > 0:
@@ -93,7 +93,7 @@ if __name__ == '__main__':
             )
 
             # remove boxes that are only part-wise present
-            crop_pixels = crop_pixels.query('area >= 2500')
+            crop_pixels = crop_pixels.query('area >= 500')
 
             # if there were only part of boxes in image jump to next loop
             if not crop_pixels.shape[0] > 0:
