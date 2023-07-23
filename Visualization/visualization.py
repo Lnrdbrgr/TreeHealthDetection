@@ -85,18 +85,12 @@ def show_image(image_path: str,
             plt.figure()
             plt.imshow(show_image_before)
             plt.show()
-            # Some Trouble with openCV and imshow
-            #cv2.imshow('Image', show_image_before)
-            #cv2.waitKey(0)
-            #cv2.destroyAllWindows()
     # transform if applicable
     if transformations:
         image = image/255.0
         image = transformations(image=image,
                                 bboxes=boxes,
                                 labels=labels)
-        # commented out with transition from imshow to plt
-        #image['image'] = image['image']*255.0
         show_image = image['image']
         boxes = image['bboxes']
     else:
@@ -114,10 +108,6 @@ def show_image(image_path: str,
         plt.figure()
         plt.imshow(show_image)
         plt.show()
-        # Some Trouble with openCV and imshow
-        #cv2.imshow('Image', show_image)
-        #cv2.waitKey(0)
-        #cv2.destroyAllWindows()
 
 
 def extract_bboxes_from_xml(bboxes_path: str,
