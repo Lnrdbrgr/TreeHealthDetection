@@ -18,8 +18,8 @@ transforms = A.Compose([
 
 
 # show image
-show_image(image_path='../Data/image.png',
-           bboxes_path='../Data/image.xml',
+show_image(image_path='../Data/ProcessedImages/example_image_01.png',
+           bboxes_path='../Data/ProcessedImagesXMLs/example_image_01.xml',
            #transformations=transforms,
            #show_before_after=True,
            class_label_name='class_label')
