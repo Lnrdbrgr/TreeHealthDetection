@@ -5,7 +5,7 @@ import copy
 from datetime import datetime
 import torch
 
-from models import create_FasterRCNN_model
+from models import create_FasterRCNN_resnet50_model
 from transformations import train_transforms,  test_train_transforms, \
     validation_transforms
 from utils import create_dataloader, evaluate_loss, train_one_epoch, \
@@ -13,8 +13,8 @@ from utils import create_dataloader, evaluate_loss, train_one_epoch, \
 from evaluation_utils import evaluate_MAP
 
 ######## CONFIG ########
-model = create_FasterRCNN_model(3)
-learning_rate=0.0001
+model = create_FasterRCNN_resnet50_model(3)
+learning_rate=0.001
 weight_decay=0.0005
 num_epochs = int(input('Number of Epochs: '))
 output_save_dir = 'Output'
@@ -47,8 +47,8 @@ optimizer = torch.optim.AdamW(params, lr=learning_rate,
 
 # initialize learning rate scheduler
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                               step_size=3,
-                                               gamma=0.1)
+                                               step_size=5,
+                                               gamma=0.75)
 
 # initialize loop objects
 training_loss = []
@@ -58,7 +58,7 @@ validation_MAP_dict = {}
 
 print(f"""Length Training Set: {len(train_loader.dataset)}""")
 print(f"""Length Validation Set: {len(validation_loader.dataset)}""")
-print(f"""Start Training ✓""")
+print(f"""Start Training with {num_epochs} epochs ✓""")
 
 # train the model
 for epoch in range(num_epochs):
@@ -78,25 +78,29 @@ for epoch in range(num_epochs):
     validation_map = evaluate_MAP(model=eval_model, dataloader=validation_loader, device=device)
     append_dicts(validation_MAP_dict, validation_map)
 
-    # Response
-    print(f"""Epoch: {epoch}
-          Training Loss: {training_loss}
-          Validation Loss: {validation_loss}
-          Training MAP50:95: {training_MAP_dict['map'][-5:]}
-          Validation MAP50:95: {validation_MAP_dict['map'][-5:]}
-          Training MAP50: {training_MAP_dict['map_50'][-5:]}
-          Validation MAP50: {validation_MAP_dict['map_50'][-5:]}""")
+    if epoch > 1:
+        # Response
+        print(f"""Epoch: {epoch}
+              Training Loss: {training_loss[-5:]}
+              Validation Loss: {validation_loss[-5:]}
+              Training MAP50:95: {training_MAP_dict['map'][-5:]}
+              Validation MAP50:95: {validation_MAP_dict['map'][-5:]}
+              Training MAP50: {training_MAP_dict['map_50'][-5:]}
+              Validation MAP50: {validation_MAP_dict['map_50'][-5:]}""")
+    else:
+        print(f"""Epoch: {epoch} ✓""")
+        
 
-    # write out model after every second epoch
+    # update write out results after every second epoch
     if (epoch%2 == 0):
-        write_out_results(
-                model=model,
-                output_directory=output_save_dir,
-                run_name=run_name,
-                epoch=epoch
-        )
+        #write_out_results(
+        #        model=model,
+        #        output_directory=output_save_dir,
+        #        run_name=run_name,
+        #        epoch=epoch
+        #)
     # save results on last epoch
-    if epoch == (num_epochs-1):
+    #if epoch == (num_epochs-1):
         write_out_results(
             model=model,
             output_directory=output_save_dir,

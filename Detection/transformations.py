@@ -27,7 +27,7 @@ train_transforms = A.Compose([
     A.RandomRotate90(p=0.75),
     A.VerticalFlip(p=0.75),
     A.HorizontalFlip(p=0.75),
-    A.RandomSizedCrop((450, 450), 512, 512, p=0.1),
+    #A.RandomSizedCrop((450, 450), 512, 512, p=0.1),
     A.Sharpen(p=0.1, lightness=(0.2, 0.8)),
     # the following transformations really distort the image so dont
     # use them that often

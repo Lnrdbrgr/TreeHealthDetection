@@ -3,11 +3,12 @@
 
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
+import torch
 import torchvision
 from typing import Any
 
 
-def create_FasterRCNN_resnet50_model(num_classes: int) -> Any:
+def create_FasterRCNN_resnet50_model(num_classes: int) -> torch.nn.Module:
     """
     Creates a FasterRCNN Model with pre-trained ResNet weights.
 
@@ -30,7 +31,7 @@ def create_FasterRCNN_resnet50_model(num_classes: int) -> Any:
     return model
 
 
-def create_FasterRCNN_mobilenet_v3_model(num_classes: int) -> Any:
+def create_FasterRCNN_mobilenet_v3_model(num_classes: int) -> torch.nn.Module:
     """
     Creates a FasterRCNN Model with pre-trained mobilenet weights.
 
