@@ -47,7 +47,7 @@ def create_dataloader(train_img_directory: str,
                       validation_transforms: Any = None,
                       train_batch_size: int = 16,
                       validation_batch_size: int = 8,
-                      train_split: float = 0.75) -> tuple:
+                      train_split: float = 0.8) -> tuple:
     """
     Create and return data loaders for training and validation datasets.
     If training and validation directories are specified those are used.
