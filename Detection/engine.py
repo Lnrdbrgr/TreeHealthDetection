@@ -9,27 +9,30 @@ from models import create_FasterRCNN_resnet50_model
 from transformations import train_transforms,  test_train_transforms, \
     validation_transforms
 from utils import create_dataloader, evaluate_loss, train_one_epoch, \
-    write_out_results, append_dicts
+    write_out_results, write_out_model, append_dicts, visualize_training_output
 from evaluation_utils import evaluate_MAP
 
 ######## CONFIG ########
 model = create_FasterRCNN_resnet50_model(3)
-learning_rate=0.001
+learning_rate=0.0001
 weight_decay=0.0005
 num_epochs = int(input('Number of Epochs: '))
+test_pattern = 'Hachenburg_loc1'
 output_save_dir = 'Output'
 run_name = str(datetime.now().strftime("%Y%m%d_%H%M"))
 train_transformations = train_transforms
 ######## CONFIG ########
 
 # create dataloader
-train_loader, validation_loader = create_dataloader(
+train_loader, validation_loader, train_val_images_dict = create_dataloader(
     train_img_directory='../Data/ProcessedImages',
     train_xml_directory='../Data/ProcessedImagesXMLs',
     train_dir_is_valid_dir=True,
+    test_pattern=test_pattern,
     train_transforms=train_transformations,
     validation_transforms=validation_transforms,
-    train_batch_size=8
+    train_batch_size=8,
+    train_split=0.8
 )
 print(f"""Training and Validation Data Loader initialized ✓""")
 
@@ -47,8 +50,8 @@ optimizer = torch.optim.AdamW(params, lr=learning_rate,
 
 # initialize learning rate scheduler
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                               step_size=5,
-                                               gamma=0.75)
+                                               step_size=25,
+                                               gamma=0.9)
 
 # initialize loop objects
 training_loss = []
@@ -90,26 +93,34 @@ for epoch in range(num_epochs):
     else:
         print(f"""Epoch: {epoch} ✓""")
         
-
-    # update write out results after every second epoch
-    if (epoch%2 == 0):
-        #write_out_results(
-        #        model=model,
-        #        output_directory=output_save_dir,
-        #        run_name=run_name,
-        #        epoch=epoch
-        #)
-    # save results on last epoch
-    #if epoch == (num_epochs-1):
-        write_out_results(
+    # write out the model if better than previous model
+    if (epoch > 5) and \
+       ((validation_MAP_dict['map'][-1] > validation_MAP_dict['map'][-2]) \
+        or (validation_MAP_dict['map_50'][-1] > validation_MAP_dict['map_50'][-2])):
+        write_out_model(
             model=model,
             output_directory=output_save_dir,
             run_name=run_name,
-            epoch=epoch,
+            epoch=epoch
+        )
+
+    # write out or update results
+    if (epoch == 1):
+        write_out_results(
+            output_directory=output_save_dir,
+            run_name=run_name,
+            train_transformations=train_transformations,
+            optimizer=optimizer,
+            learning_rate_scheduler=lr_scheduler,
+            write_out_dicts={'TrainValSplit': train_val_images_dict}
+        )
+    elif (epoch > 5):
+        write_out_results(
+            output_directory=output_save_dir,
+            run_name=run_name,
             training_loss=training_loss,
             validation_loss=validation_loss,
             training_MAP=training_MAP_dict,
-            validation_MAP=validation_MAP_dict,
-            optimizer=optimizer,
-            train_transformations=train_transformations
+            validation_MAP=validation_MAP_dict
         )
+        visualize_training_output(output_folder=run_name)

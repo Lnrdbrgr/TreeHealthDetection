@@ -2,6 +2,8 @@
 and model training phase.
 """
 
+import json
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
@@ -42,6 +44,7 @@ def create_dataloader(train_img_directory: str,
                       validation_img_directory: str = None,
                       validation_xml_directory: str = None,
                       train_dir_is_valid_dir: bool = False,
+                      test_pattern: str = None,
                       image_format: str = 'png',
                       train_transforms: Any = None,
                       validation_transforms: Any = None,
@@ -71,6 +74,10 @@ def create_dataloader(train_img_directory: str,
             Flag indicating whether the train_img_directory is the same
             as the train_xml_directory.
             Default = False
+        test_pattern (str):
+            Pattern for the image names that should be used as a test
+            set and therefore excluded completely during training.
+            Default = None
         image_format (str):
             Image file format.
             Default = 'png'
@@ -99,6 +106,9 @@ def create_dataloader(train_img_directory: str,
         # get all images in directory folder
         images = [image for image in os.listdir(train_img_directory) \
                       if image.endswith(image_format)]
+        # exclude images that should be used for testing
+        if test_pattern:
+            images = [image for image in images if not image.startswith(test_pattern)]
         # split in training and validation images
         random.shuffle(images)
         train_images = images[:int(train_split*len(images))]
@@ -161,7 +171,10 @@ def create_dataloader(train_img_directory: str,
         collate_fn=collate_fn
     )
 
-    return train_loader, validation_loader
+    train_val_images_dict = {'test_pattern': test_pattern,
+                             'train_images': train_images,
+                             'validation_images': validation_images}
+    return train_loader, validation_loader, train_val_images_dict
 
 
 def evaluate_loss(model: torch.nn.Module,
@@ -232,22 +245,20 @@ def train_one_epoch(model: torch.nn.Module,
         optimizer.step()
 
 
-def write_out_results(model: torch.nn.Module,
-                      output_directory: str,
+def write_out_results(output_directory: str,
                       run_name: str,
-                      epoch: int = None,
                       training_loss: list = None,
                       validation_loss: list = None,
                       training_MAP: list = None,
                       validation_MAP: list = None,
                       optimizer: torch.optim.Optimizer = None,
-                      train_transformations = None) -> None:
-    """Write out the model, loss, and optimizer data to
+                      learning_rate_scheduler: torch.optim.lr_scheduler.StepLR = None,
+                      train_transformations: Any = None,
+                      write_out_dicts: dict = None) -> None:
+    """Write out the loss, and optimizer data to
     the specified output directory.
 
     Args:
-        model (torch.nn.Module):
-            The model to save.
         output_directory (str):
             The directory to save the model and data.
         run_name (str):
@@ -262,19 +273,15 @@ def write_out_results(model: torch.nn.Module,
             The list of validation MAP values for each epoch.
         optimizer (torch.optim.Optimizer, optional):
             The optimizer used for training.
+        write_out_dicts (dict):
+            A dictionary containing other dictionary that should
+            be written out. The keys are used as filenames.
     """
     # generate output directory
     save_direc = os.path.join(os.getcwd(), output_directory, run_name)
     # make directory if not exists
     if not os.path.exists(save_direc):
         os.makedirs(save_direc)
-    # make model saving directory
-    model_save_direc = os.path.join(os.getcwd(), output_directory, run_name, 'models')
-    if not os.path.exists(model_save_direc):
-        os.makedirs(model_save_direc)
-    # save model
-    torch.save(model, os.path.join(model_save_direc, ('epoch_' + str(epoch) + '_model.pth')))
-    print(f"""Model Saved ✓""")
     if training_loss or validation_loss:
         loss_df = pd.DataFrame({'Epoch': range(len(training_loss)),
                                 'TrainingLoss': training_loss,
@@ -297,10 +304,47 @@ def write_out_results(model: torch.nn.Module,
         with open(os.path.join(save_direc, 'optimizer.txt'), 'w+') as f:
             print(optimizer, file=f)
         print(f"""Optimizer Data Saved ✓""")
+    if learning_rate_scheduler:
+        with open(os.path.join(save_direc, 'learning_rate.txt'), 'w+') as f:
+            print(learning_rate_scheduler.state_dict(), file=f)
+        print(f"""Learning Rate Data Saved ✓""")
     if train_transformations:
         with open(os.path.join(save_direc, 'transformations.txt'), 'w+') as f:
             print(train_transformations, file=f)
         print(f"""Transformations Data Saved ✓""")
+    if write_out_dicts:
+        for key, value in write_out_dicts.items():
+            with open(os.path.join(save_direc, f'{key}.json'), 'w+') as fp:
+                json.dump(value, fp)
+            print(f"""{key} Data Saved ✓""")
+
+
+def write_out_model(model: torch.nn.Module,
+                    output_directory: str,
+                    run_name: str,
+                    epoch: int = None):
+    """Write out the model to the specified output directory.
+
+    Args:
+        model (torch.nn.Module):
+            The model to save.
+        output_directory (str):
+            The directory to save the model and data.
+        run_name (str):
+            The name of the current run or experiment.
+    """
+    # generate output directory
+    save_direc = os.path.join(os.getcwd(), output_directory, run_name)
+    # make directory if not exists
+    if not os.path.exists(save_direc):
+        os.makedirs(save_direc)
+    # make model saving directory
+    model_save_direc = os.path.join(os.getcwd(), output_directory, run_name, 'models')
+    if not os.path.exists(model_save_direc):
+        os.makedirs(model_save_direc)
+    # save model
+    torch.save(model, os.path.join(model_save_direc, ('epoch_' + str(epoch) + '_model.pth')))
+    print(f"""Model Saved ✓""")
 
 
 def append_dicts(dict1: dict,
@@ -347,3 +391,117 @@ def transform_dict(dict: dict) -> dict:
             # If it's not a tensor list, just assign the original value
             new_dict[key] = value
     return new_dict
+
+
+def visualize_training_output(output_folder: str,
+                              show_plot: bool = False,
+                              save_plot: bool = True,
+                              background_color: str = '#eff1f3',
+                              train_color: str = '#222843',
+                              validation_color: str = '#dda15e') -> None:
+    """Visualize the training output including loss and accuracy plots.
+
+    Agrs:
+        output_folder (str):
+            The name of the folder containing the training output files.
+        show_plot (bool, optional):
+            If True, display the generated plots interactively.
+            Default = False
+        save_plot (bool, optional):
+            If True, save the generated plots in the output folder.
+            Default = True
+        background_color (str, optional):
+            Background color for the plots.
+            Default = '#eff1f3'.
+        train_color (str, optional):
+            Color for training-related lines in the plots.
+            Default = '#222843'.
+        validation_color (str, optional):
+            Color for validation-related lines in the plots.
+            Default = '#dda15e'.
+    """
+    # generate path
+    path = '../Detection/Output/' + output_folder + '/'
+
+    # read in data
+    loss_df = pd.read_csv(path+'loss_df.csv')
+    training_map = pd.read_csv(path+'training_MAP.csv')
+    validation_map = pd.read_csv(path+'validation_MAP.csv')
+
+    # Loss Plot
+    plt.figure(facecolor=background_color)
+    plt.gca().set_facecolor(background_color)
+    plt.plot(loss_df['TrainingLoss'], color=train_color, label='Train Loss')
+    plt.plot(loss_df['ValidationLoss'], color=validation_color, label='Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
+    plt.legend(facecolor=background_color, loc='upper left')
+    if save_plot:
+        plt.savefig((path+'loss_plot.png'), bbox_inches='tight', dpi=500)
+    if show_plot:
+        plt.show()
+
+    # Accuracy Plot
+    plt.figure(facecolor=background_color)
+    plt.gca().set_facecolor(background_color)
+    plt.plot(training_map['map']*100, color=train_color, label='Train mAP')
+    plt.plot(training_map['map_50']*100, color=train_color, label='Train mAP50', 
+            linestyle='dashed', alpha=0.6, linewidth=0.65)
+    plt.plot(training_map['mar_100']*100, color=train_color, label='Train mAR@100',
+            linestyle='dotted', alpha=0.6, linewidth=0.65)
+    plt.plot(validation_map['map']*100, color=validation_color, label='Validation mAP')
+    plt.plot(validation_map['map_50']*100, color=validation_color, label='Validation mAP50',
+            linestyle='dashed', alpha=0.6, linewidth=0.65)
+    plt.plot(validation_map['mar_100']*100, color=validation_color, label='Validation mAR@100',
+            linestyle='dotted', alpha=0.6, linewidth=0.65)
+    plt.xlabel('Epoch')
+    plt.ylabel('mAP / mAR (in %)')
+    plt.ylim(0, 100)
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
+    plt.legend(facecolor=background_color, loc='upper left')
+    if save_plot:
+        plt.savefig((path+'accuracy_plot.png'), bbox_inches='tight', dpi=500)
+    if show_plot:
+        plt.show()
+
+    print(f"""Visualization completed ✓""")
+
+
+def extract_bboxes_from_xml(bboxes_path: str,
+                            class_label_name: str = 'name') -> Tuple[list, list]:
+    """
+    Extract bounding boxes and labels from an XML file.
+
+    Args:
+        bboxes_path (str):
+            Path to the XML file containing bounding boxes.
+            Default = None.
+        class_label_name (str, optional):
+            Name of the class label in the XML file.
+            Default = 'name'.
+        resize_to (tuple, optional):
+            Target size for resizing the image.
+            Default = None.
+
+    Returns:
+        Tuple[list, list]: Bounding boxes and labels as lists.
+    """
+    # initialize XML reader
+    tree = et.parse(bboxes_path)
+    root = tree.getroot()
+    # initialize emtpy objects to store
+    boxes = []
+    labels = []
+    # extract boxes
+    for member in root.findall('object'):
+        xmin = int(member.find('bndbox').find('xmin').text)
+        xmax = int(member.find('bndbox').find('xmax').text)
+        ymin = int(member.find('bndbox').find('ymin').text)
+        ymax = int(member.find('bndbox').find('ymax').text)
+        labels.append(member.find(class_label_name).text)
+        boxes.append([xmin, ymin, xmax, ymax])
+
+    return boxes, labels
