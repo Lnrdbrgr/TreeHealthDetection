@@ -2,6 +2,7 @@
 and model training phase.
 """
 
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -43,6 +44,7 @@ def create_dataloader(train_img_directory: str,
                       validation_img_directory: str = None,
                       validation_xml_directory: str = None,
                       train_dir_is_valid_dir: bool = False,
+                      test_pattern: str = None,
                       image_format: str = 'png',
                       train_transforms: Any = None,
                       validation_transforms: Any = None,
@@ -72,6 +74,10 @@ def create_dataloader(train_img_directory: str,
             Flag indicating whether the train_img_directory is the same
             as the train_xml_directory.
             Default = False
+        test_pattern (str):
+            Pattern for the image names that should be used as a test
+            set and therefore excluded completely during training.
+            Default = None
         image_format (str):
             Image file format.
             Default = 'png'
@@ -100,6 +106,9 @@ def create_dataloader(train_img_directory: str,
         # get all images in directory folder
         images = [image for image in os.listdir(train_img_directory) \
                       if image.endswith(image_format)]
+        # exclude images that should be used for testing
+        if test_pattern:
+            images = [image for image in images if not image.startswith(test_pattern)]
         # split in training and validation images
         random.shuffle(images)
         train_images = images[:int(train_split*len(images))]
@@ -162,7 +171,10 @@ def create_dataloader(train_img_directory: str,
         collate_fn=collate_fn
     )
 
-    return train_loader, validation_loader
+    train_val_images_dict = {'test_pattern': test_pattern,
+                             'train_images': train_images,
+                             'validation_images': validation_images}
+    return train_loader, validation_loader, train_val_images_dict
 
 
 def evaluate_loss(model: torch.nn.Module,
@@ -235,14 +247,14 @@ def train_one_epoch(model: torch.nn.Module,
 
 def write_out_results(output_directory: str,
                       run_name: str,
-                      epoch: int = None,
                       training_loss: list = None,
                       validation_loss: list = None,
                       training_MAP: list = None,
                       validation_MAP: list = None,
                       optimizer: torch.optim.Optimizer = None,
                       learning_rate_scheduler: torch.optim.lr_scheduler.StepLR = None,
-                      train_transformations: Any = None) -> None:
+                      train_transformations: Any = None,
+                      write_out_dicts: dict = None) -> None:
     """Write out the loss, and optimizer data to
     the specified output directory.
 
@@ -261,6 +273,9 @@ def write_out_results(output_directory: str,
             The list of validation MAP values for each epoch.
         optimizer (torch.optim.Optimizer, optional):
             The optimizer used for training.
+        write_out_dicts (dict):
+            A dictionary containing other dictionary that should
+            be written out. The keys are used as filenames.
     """
     # generate output directory
     save_direc = os.path.join(os.getcwd(), output_directory, run_name)
@@ -297,6 +312,11 @@ def write_out_results(output_directory: str,
         with open(os.path.join(save_direc, 'transformations.txt'), 'w+') as f:
             print(train_transformations, file=f)
         print(f"""Transformations Data Saved ✓""")
+    if write_out_dicts:
+        for key, value in write_out_dicts.items():
+            with open(os.path.join(save_direc, f'{key}.json'), 'w+') as fp:
+                json.dump(value, fp)
+            print(f"""{key} Data Saved ✓""")
 
 
 def write_out_model(model: torch.nn.Module,
@@ -448,3 +468,40 @@ def visualize_training_output(output_folder: str,
         plt.show()
 
     print(f"""Visualization completed ✓""")
+
+
+def extract_bboxes_from_xml(bboxes_path: str,
+                            class_label_name: str = 'name') -> Tuple[list, list]:
+    """
+    Extract bounding boxes and labels from an XML file.
+
+    Args:
+        bboxes_path (str):
+            Path to the XML file containing bounding boxes.
+            Default = None.
+        class_label_name (str, optional):
+            Name of the class label in the XML file.
+            Default = 'name'.
+        resize_to (tuple, optional):
+            Target size for resizing the image.
+            Default = None.
+
+    Returns:
+        Tuple[list, list]: Bounding boxes and labels as lists.
+    """
+    # initialize XML reader
+    tree = et.parse(bboxes_path)
+    root = tree.getroot()
+    # initialize emtpy objects to store
+    boxes = []
+    labels = []
+    # extract boxes
+    for member in root.findall('object'):
+        xmin = int(member.find('bndbox').find('xmin').text)
+        xmax = int(member.find('bndbox').find('xmax').text)
+        ymin = int(member.find('bndbox').find('ymin').text)
+        ymax = int(member.find('bndbox').find('ymax').text)
+        labels.append(member.find(class_label_name).text)
+        boxes.append([xmin, ymin, xmax, ymax])
+
+    return boxes, labels

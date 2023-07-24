@@ -17,19 +17,22 @@ model = create_FasterRCNN_resnet50_model(3)
 learning_rate=0.0001
 weight_decay=0.0005
 num_epochs = int(input('Number of Epochs: '))
+validation_pattern = 'Hachenburg_loc1'
 output_save_dir = 'Output'
 run_name = str(datetime.now().strftime("%Y%m%d_%H%M"))
 train_transformations = train_transforms
 ######## CONFIG ########
 
 # create dataloader
-train_loader, validation_loader = create_dataloader(
+train_loader, validation_loader, train_val_images_dict = create_dataloader(
     train_img_directory='../Data/ProcessedImages',
     train_xml_directory='../Data/ProcessedImagesXMLs',
     train_dir_is_valid_dir=True,
+    test_pattern=validation_pattern,
     train_transforms=train_transformations,
     validation_transforms=validation_transforms,
-    train_batch_size=8
+    train_batch_size=8,
+    train_split=0.8
 )
 print(f"""Training and Validation Data Loader initialized ✓""")
 
@@ -90,7 +93,7 @@ for epoch in range(num_epochs):
     else:
         print(f"""Epoch: {epoch} ✓""")
         
-    # write out the model
+    # write out the model if better than previous model
     if (epoch > 5) and \
        ((validation_MAP_dict['map'][-1] > validation_MAP_dict['map'][-2]) \
         or (validation_MAP_dict['map_50'][-1] > validation_MAP_dict['map_50'][-2])):
@@ -102,17 +105,22 @@ for epoch in range(num_epochs):
         )
 
     # write out or update results
-    if (epoch > 5):
+    if (epoch == 1):
         write_out_results(
             output_directory=output_save_dir,
             run_name=run_name,
-            epoch=epoch,
+            train_transformations=train_transformations,
+            optimizer=optimizer,
+            learning_rate_scheduler=lr_scheduler,
+            write_out_dicts={'TrainValSplit': train_val_images_dict}
+        )
+    elif (epoch > 5):
+        write_out_results(
+            output_directory=output_save_dir,
+            run_name=run_name,
             training_loss=training_loss,
             validation_loss=validation_loss,
             training_MAP=training_MAP_dict,
-            validation_MAP=validation_MAP_dict,
-            optimizer=optimizer,
-            learning_rate_scheduler=lr_scheduler,
-            train_transformations=train_transformations
+            validation_MAP=validation_MAP_dict
         )
         visualize_training_output(output_folder=run_name)
