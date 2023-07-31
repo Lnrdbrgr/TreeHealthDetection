@@ -23,12 +23,14 @@ test_pattern = 'Hachenburg_loc1'
 output_save_dir = 'Output'
 run_name = str(datetime.now().strftime("%Y%m%d_%H%M"))
 train_transformations = train_transforms
+label_mapping_dict={'_background_': 0, 'healthy': 1, 'infested': 2, 'dead': 3}
 ######## CONFIG ########
 
 # create dataloader
 train_loader, validation_loader, train_val_images_dict = create_dataloader(
     train_img_directory='../Data/ProcessedImages',
-    train_xml_directory='../Data/ProcessedImagesXMLs',
+    train_xml_directory='../Data/ProcessedImages',
+    label_mapping_dict=label_mapping_dict,
     train_dir_is_valid_dir=True,
     test_pattern=test_pattern,
     train_transforms=train_transformations,

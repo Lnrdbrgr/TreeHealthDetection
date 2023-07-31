@@ -116,7 +116,7 @@ def create_ssd300_vgg16_model(num_classes: int) -> torch.nn.Module:
     in_channels = det_utils.retrieve_out_channels(model.backbone, (320, 320))
     norm_layer  = partial(torch.nn.BatchNorm2d, eps=0.001, momentum=0.03)
     model.head.classification_head = SSDLiteClassificationHead(
-        in_channels, num_anchors, num_classes, norm_layer
+        in_channels, num_anchors, num_classes+1, norm_layer
     )
     # return
     return model

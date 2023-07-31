@@ -41,6 +41,7 @@ def collate_fn(batch: Any) -> Tuple:
 
 def create_dataloader(train_img_directory: str,
                       train_xml_directory: str,
+                      label_mapping_dict: dict,
                       validation_img_directory: str = None,
                       validation_xml_directory: str = None,
                       train_dir_is_valid_dir: bool = False,
@@ -64,6 +65,11 @@ def create_dataloader(train_img_directory: str,
             Path to the directory containing training images.
         train_xml_directory (str):
             Path to the directory containing training XML files.
+        label_mapping_dict (dict):
+            Dictionary containing the class names along with their
+            corresponding integer label. XML label files often include
+            the label as string but the models need integer classes.
+            Example: {'class_label_1': 1, 'class_label_2': 2}
         validation_img_directory (str):
             Path to the directory containing validation images.
             Default = None
@@ -121,7 +127,8 @@ def create_dataloader(train_img_directory: str,
             image_format=image_format,
             height=512,
             width=512,
-            transforms=train_transforms
+            transforms=train_transforms,
+            label_mapping_dict=label_mapping_dict
         )
         # make validation dataset
         validation_dataset = CustomDataset(
@@ -131,7 +138,8 @@ def create_dataloader(train_img_directory: str,
             image_format=image_format,
             height=512,
             width=512,
-            transforms=validation_transforms
+            transforms=validation_transforms,
+            label_mapping_dict=label_mapping_dict
         )
 
     else:
@@ -145,7 +153,8 @@ def create_dataloader(train_img_directory: str,
             image_format=image_format,
             height=512,
             width=512,
-            transforms=train_transforms
+            transforms=train_transforms,
+            label_mapping_dict=label_mapping_dict
         )
         # make validation dataset
         validation_dataset = CustomDataset(
@@ -154,14 +163,15 @@ def create_dataloader(train_img_directory: str,
             image_format=image_format,
             height=512,
             width=512,
-            transforms=validation_transforms
+            transforms=validation_transforms,
+            label_mapping_dict=label_mapping_dict
         )
 
     # make data loader
     train_loader = DataLoader(
         dataset=train_dataset,
         batch_size=train_batch_size,
-        shuffle=False,
+        shuffle=True,
         collate_fn=collate_fn
     )
     validation_loader = DataLoader(

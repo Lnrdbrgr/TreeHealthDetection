@@ -38,6 +38,11 @@ class CustomDataset(Dataset, pydantic.BaseModel):
         transforms (Any):
             Image transformation function.
             Default = None.
+        label_mapping_dict (dict):
+            Dictionary containing the class names along with their
+            corresponding integer label. XML label files often include
+            the label as string but the models need integer classes.
+            Example: {'class_label_1': 1, 'class_label_2': 2}
     """
     image_dir: str
     image_list: list | None = None
@@ -46,6 +51,7 @@ class CustomDataset(Dataset, pydantic.BaseModel):
     height: int
     width: int
     transforms: Any = None
+    label_mapping_dict: dict
 
     @pydantic.root_validator
     def extract_all_images(cls, values: dict) -> dict:
@@ -88,7 +94,7 @@ class CustomDataset(Dataset, pydantic.BaseModel):
         Method necessary for torch datasets, used to extract data in 
         batch iterations.
         
-        Args
+        Args:
             index (int):
                 Index of the item.
 
@@ -115,7 +121,7 @@ class CustomDataset(Dataset, pydantic.BaseModel):
         annotations_file_name = '.'.join(image_name.split('.')[:-1]) + '.xml'
         annotations_file_path = self.xml_dir + '/' + annotations_file_name
         boxes, labels = self.extract_bboxes_from_xml(bboxes_path=annotations_file_path,
-                                                     class_label_name='class_no')
+                                                     class_label_name='name')
         # resize bounding boxes to new measures
         boxes_resized = []
         for box in boxes:
@@ -131,7 +137,8 @@ class CustomDataset(Dataset, pydantic.BaseModel):
         # (for overlapping objects, not applicable here yet)
         iscrowd = torch.zeros((boxes.shape[0],), dtype=torch.int64)
         # labels to tensor
-        labels = list(map(int, labels))
+        #raise ValueError(f'{self.label_mapping_dict} \n {labels}')
+        labels =[int(self.label_mapping_dict[item]) for item in labels]
         labels = torch.as_tensor(labels, dtype=torch.int64)
 
         # prepare the target dictionary
@@ -164,7 +171,7 @@ class CustomDataset(Dataset, pydantic.BaseModel):
 
     @staticmethod
     def extract_bboxes_from_xml(bboxes_path: str,
-                            class_label_name: str = 'class_no') -> Tuple[list, list]:
+                                class_label_name: str = 'name') -> Tuple[list, list]:
         """
         Extract bounding boxes and labels from an XML file.
 
