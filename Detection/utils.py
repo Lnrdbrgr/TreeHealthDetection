@@ -247,6 +247,7 @@ def train_one_epoch(model: torch.nn.Module,
 
 def write_out_results(output_directory: str,
                       run_name: str,
+                      model: torch.nn.Module = None,
                       training_loss: list = None,
                       validation_loss: list = None,
                       training_MAP: list = None,
@@ -300,6 +301,10 @@ def write_out_results(output_directory: str,
         validation_MAP_df.to_csv(os.path.join(save_direc, 'validation_MAP.csv'),
                                  index=False)
         print(f"""Validation MAP Saved ✓""")
+    if model:
+        with open(os.path.join(save_direc, 'model.txt'), 'w+') as f:
+            print(model, file=f)
+        print(f"""Model Specifications Saved ✓""")
     if optimizer:
         with open(os.path.join(save_direc, 'optimizer.txt'), 'w+') as f:
             print(optimizer, file=f)
@@ -442,30 +447,32 @@ def visualize_training_output(output_folder: str,
         plt.savefig((path+'loss_plot.png'), bbox_inches='tight', dpi=500)
     if show_plot:
         plt.show()
+    plt.close()
 
     # Accuracy Plot
     plt.figure(facecolor=background_color)
     plt.gca().set_facecolor(background_color)
-    plt.plot(training_map['map']*100, color=train_color, label='Train mAP')
-    plt.plot(training_map['map_50']*100, color=train_color, label='Train mAP50', 
+    plt.plot(training_map['map_50']*100, color=train_color, label='Train mAP50')
+    plt.plot(training_map['map']*100, color=train_color, label='Train mAP50:95', 
             linestyle='dashed', alpha=0.6, linewidth=0.65)
     plt.plot(training_map['mar_100']*100, color=train_color, label='Train mAR@100',
             linestyle='dotted', alpha=0.6, linewidth=0.65)
-    plt.plot(validation_map['map']*100, color=validation_color, label='Validation mAP')
-    plt.plot(validation_map['map_50']*100, color=validation_color, label='Validation mAP50',
+    plt.plot(validation_map['map_50']*100, color=validation_color, label='Validation mAP50')
+    plt.plot(validation_map['map']*100, color=validation_color, label='Validation mAP50:95',
             linestyle='dashed', alpha=0.6, linewidth=0.65)
     plt.plot(validation_map['mar_100']*100, color=validation_color, label='Validation mAR@100',
             linestyle='dotted', alpha=0.6, linewidth=0.65)
     plt.xlabel('Epoch')
-    plt.ylabel('mAP / mAR (in %)')
+    plt.ylabel('mAP / mAR')
     plt.ylim(0, 100)
     plt.gca().spines['top'].set_visible(False)
     plt.gca().spines['right'].set_visible(False)
-    plt.legend(facecolor=background_color, loc='upper left')
+    plt.legend(facecolor=background_color, loc='lower right')
     if save_plot:
         plt.savefig((path+'accuracy_plot.png'), bbox_inches='tight', dpi=500)
     if show_plot:
         plt.show()
+    plt.close()
 
     print(f"""Visualization completed ✓""")
 
