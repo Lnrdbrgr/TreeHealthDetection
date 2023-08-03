@@ -5,14 +5,14 @@ import copy
 from datetime import datetime
 import torch
 
-from models import create_FasterRCNN_resnet50_model, \
+from Detection.models import create_FasterRCNN_resnet50_model, \
     create_Retinanet_resnet50_v2_model, create_FasterRCNN_mobilenet_v3_model, \
     create_ssd300_vgg16_model
-from transformations import train_transforms,  test_train_transforms, \
+from Detection.transformations import train_transforms,  test_train_transforms, \
     validation_transforms
-from utils import create_dataloader, evaluate_loss, train_one_epoch, \
+from Detection.utils import create_dataloader, evaluate_loss, train_one_epoch, \
     write_out_results, write_out_model, append_dicts, visualize_training_output
-from evaluation_utils import evaluate_MAP
+from Detection.evaluation_utils import evaluate_MAP
 
 ######## CONFIG ########
 model = create_FasterRCNN_mobilenet_v3_model(3)
@@ -28,8 +28,8 @@ label_mapping_dict={'_background_': 0, 'healthy': 1, 'infested': 2, 'dead': 3}
 
 # create dataloader
 train_loader, validation_loader, train_val_images_dict = create_dataloader(
-    train_img_directory='../Data/ProcessedImages',
-    train_xml_directory='../Data/ProcessedImages',
+    train_img_directory='./Data/ProcessedImages',
+    train_xml_directory='./Data/ProcessedImages',
     label_mapping_dict=label_mapping_dict,
     train_dir_is_valid_dir=True,
     test_pattern=test_pattern,

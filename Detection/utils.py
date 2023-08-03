@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from typing import Tuple, Any
 from xml.etree import ElementTree as et
 
-from CustomDataset import CustomDataset
+from Detection.CustomDataset import CustomDataset
 
 
 def collate_fn(batch: Any) -> Tuple:
@@ -436,7 +436,7 @@ def visualize_training_output(output_folder: str,
             Default = '#dda15e'.
     """
     # generate path
-    path = '../Detection/Output/' + output_folder + '/'
+    path = './Detection/Output/' + output_folder + '/'
 
     # read in data
     loss_df = pd.read_csv(path+'loss_df.csv')

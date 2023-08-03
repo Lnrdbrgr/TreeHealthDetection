@@ -14,13 +14,13 @@ from torch.utils.data import DataLoader
 from torchmetrics.detection import MeanAveragePrecision
 from tqdm import tqdm
 
-from CustomDataset import CustomDataset
-from transformations import validation_transforms
-from utils import collate_fn, append_dicts, transform_dict
+from Detection.CustomDataset import CustomDataset
+from Detection.transformations import validation_transforms
+from Detection.utils import collate_fn, append_dicts, transform_dict
 
 ######## CONFIG ########
-image_dir = '../Data/ProcessedImages'
-xml_dir = '../Data/ProcessedImages'
+image_dir = './Data/ProcessedImages'
+xml_dir = './Data/ProcessedImages'
 run_name = '20230728_0858_hbgloc1fasterrcnnresnet'
 model = 'epoch_140_model.pth'
 test_pattern = 'Hachenburg_loc1'

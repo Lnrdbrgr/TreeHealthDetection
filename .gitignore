@@ -6,6 +6,6 @@ Data/
 Scripts/
 Detection/test_script.ipynb
 Inference/inference_script.ipynb
-Detection/Output/
+Output/
 Visualization/viz_script.ipynb
 ShellExecuter.ipynb
