@@ -16,7 +16,7 @@ from Detection.utils import create_dataloader, evaluate_loss, train_one_epoch, \
 from Detection.evaluation_utils import evaluate_MAP
 
 ######## CONFIG ########
-model = create_FasterRCNN_resnet50_model(3)
+model = create_Retinanet_resnet50_v2_model(3)
 learning_rate=0.0001
 weight_decay=0.0005
 num_epochs = int(input('Number of Epochs: '))
