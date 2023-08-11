@@ -23,7 +23,11 @@ torch = "2.0.1"
 torchmetrics = "1.0.1"
 torchvision = "0.15.2"
 tqdm = "4.65.0"
+pycocotools = "^2.0.6"
 
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.25.0"
 
 [build-system]
 requires = ["poetry-core"]

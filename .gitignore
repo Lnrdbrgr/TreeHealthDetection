@@ -9,3 +9,4 @@ Inference/inference_script.ipynb
 Output/
 Visualization/viz_script.ipynb
 ShellExecuter.ipynb
+*.ipynb
