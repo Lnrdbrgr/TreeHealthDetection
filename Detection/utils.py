@@ -17,26 +17,26 @@ from Detection.CustomDataset import CustomDataset
 
 
 def collate_fn(batch: Any) -> Tuple:
-  """
-  Collate function for data loading and handling different images with varying
-  classes and sizes.
+    """
+    Collate function for data loading and handling different images with varying
+    classes and sizes.
 
-  This function is used in conjunction with a PyTorch DataLoader to process a
-  batch of samples. It takes a batch of samples, where each sample is a tuple
-  containing an image and its associated data, and performs necessary operations
-  to handle variations in image sizes and classes.
+    This function is used in conjunction with a PyTorch DataLoader to process a
+    batch of samples. It takes a batch of samples, where each sample is a tuple
+    containing an image and its associated data, and performs necessary operations
+    to handle variations in image sizes and classes.
 
-  Args:
-      batch (Any):
-          A batch of samples to be collated.
+    Args:
+        batch (Any):
+                A batch of samples to be collated.
 
-  Returns:
-      Tuple: 
-          A tuple containing the collated data. The data is organized in a way
-          that handles different tensor shapes in the output, ensuring
-          consistency across the batch.
-  """
-  return tuple(zip(*batch))
+    Returns:
+        Tuple: 
+            A tuple containing the collated data. The data is organized in a way
+            that handles different tensor shapes in the output, ensuring
+            consistency across the batch.
+    """
+    return tuple(zip(*batch))
 
 
 def create_dataloader(train_img_directory: str,
@@ -436,7 +436,7 @@ def visualize_training_output(output_folder: str,
             Default = '#dda15e'.
     """
     # generate path
-    path = './Detection/Output/' + output_folder + '/'
+    path = './Output/' + output_folder + '/'
 
     # read in data
     loss_df = pd.read_csv(path+'loss_df.csv')

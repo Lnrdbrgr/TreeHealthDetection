@@ -3,6 +3,7 @@
 
 import copy
 from datetime import datetime
+from pytz import timezone
 import torch
 
 from Detection.models import create_FasterRCNN_resnet50_model, \
@@ -15,13 +16,13 @@ from Detection.utils import create_dataloader, evaluate_loss, train_one_epoch, \
 from Detection.evaluation_utils import evaluate_MAP
 
 ######## CONFIG ########
-model = create_FasterRCNN_mobilenet_v3_model(3)
+model = create_Retinanet_resnet50_v2_model(3)
 learning_rate=0.0001
 weight_decay=0.0005
 num_epochs = int(input('Number of Epochs: '))
-test_pattern = 'Hachenburg_loc1'
+test_pattern = 'Haiterbach_loc1'
 output_save_dir = 'Output'
-run_name = str(datetime.now().strftime("%Y%m%d_%H%M"))
+run_name = str(datetime.now(timezone('Europe/Berlin')).strftime("%Y%m%d_%H%M"))
 train_transformations = train_transforms
 label_mapping_dict={'_background_': 0, 'healthy': 1, 'infested': 2, 'dead': 3}
 ######## CONFIG ########

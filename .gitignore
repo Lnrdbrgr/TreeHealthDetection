@@ -4,8 +4,7 @@ __pycache__/
 # Folders for personel use only
 Data/
 Scripts/
-Detection/test_script.ipynb
-Inference/inference_script.ipynb
 Output/
-Visualization/viz_script.ipynb
-ShellExecuter.ipynb
+
+# Notebooks and scripts
+**/*.ipynb
