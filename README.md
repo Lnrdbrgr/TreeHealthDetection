@@ -12,13 +12,4 @@ One consequence of the temperature increase that is already visible today is the
 This project aims at classifying infested spruce trees from aerial imagery, a method to make forest management and maintenance more efficient and providing the ability to react fast when necessary.
 
 #### Methodology
-The health status is classified using RCNNs (Regional Convolutional Neural Networks) at tree level by providing bounding box predictions along with the classification status. Image data is collected in 5 areas with ongoing infestation using a DJI drone over the spring and summer of 2023. Image data is not shared in this repository but some examples along with bounding boxes can be found in Data/ to get the pipeline running.
-
-## Code
-
-The project is divided in different modules represented by the folders above. This repository provides an End-to-End solution from the initial orthomosaic to a trained model along with accuracy measures. The code is kept as generall as possible to enable object detection on any custom dataset.
-
-Pre-processing scripts can be found under PreProcessing. The scripts expect a (large tif-) image along with a csv of bounding box coordinates and classification status. The large image is divided to smaller subsamples to enable model training. For each smaller image, an xml in Pascal-VOC style is generated to store bounding box information.
-
-Scripts for model training are located under Detection. engine.py runs the model training. The remaining scripts collect utility and helper functions and classes. Image augmentation transformations can be set in transformations.py.
-
+The health status is classified using RCNNs (Regional Convolutional Neural Networks) at tree level by providing bounding box predictions along with the classification status. Image data is collected in 5 areas with ongoing infestation using a DJI drone over the spring and summer of 2023. Image data is not shared in this repository but some examples along with bounding boxes can be found in Data/ to get the pipeline running (maybe not applicable yet).
