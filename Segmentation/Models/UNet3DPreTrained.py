@@ -125,3 +125,4 @@ class DecoderBlock(nn.Module):
         conv_3d.append(nn.BatchNorm3d(out_channels))
         conv_3d.append(nn.ReLU())
         return conv_3d
+    
