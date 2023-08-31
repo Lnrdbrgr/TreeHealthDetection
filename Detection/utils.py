@@ -179,13 +179,15 @@ def create_dataloader(train_img_directory: str,
         dataset=train_dataset,
         batch_size=train_batch_size,
         shuffle=True,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
+        drop_last=True
     )
     validation_loader = DataLoader(
         dataset=validation_dataset,
         batch_size=validation_batch_size,
         shuffle=False,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
+        drop_last=True
     )
     train_val_images_dict = {'test_images': test_list,
                              'train_images': train_images,
