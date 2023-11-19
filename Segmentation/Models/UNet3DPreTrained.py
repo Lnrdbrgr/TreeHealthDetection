@@ -55,7 +55,7 @@ class EncoderBlock(nn.Module):
         conv_3d = nn.Sequential()
         conv_3d.append(nn.Conv3d(in_channels, out_channels, kernel_size=(1, 1, 1)))
         conv_3d.append(nn.BatchNorm3d(out_channels))
-        conv_3d.append(nn.ReLU())
+        conv_3d.append(nn.LeakyReLU())
         return conv_3d
     
 class DecoderBlock(nn.Module):
@@ -116,13 +116,12 @@ class DecoderBlock(nn.Module):
         x = self.decoder_4(x)
 
         return x
-        
 
     def _get_3d_conv_no_pooling(self, in_channels, out_channels):
         # 3D conv -> batch norm -> relu
         conv_3d = nn.Sequential()
         conv_3d.append(nn.Conv3d(in_channels, out_channels, kernel_size=(1, 1, 1)))
         conv_3d.append(nn.BatchNorm3d(out_channels))
-        conv_3d.append(nn.ReLU())
+        conv_3d.append(nn.LeakyReLU())
         return conv_3d
     

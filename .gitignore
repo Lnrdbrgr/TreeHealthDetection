@@ -2,6 +2,7 @@
 __pycache__/
 
 # Folders for personel use only
+Archive/
 Data/
 Scripts/
 Output/
