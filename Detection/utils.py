@@ -46,6 +46,7 @@ def create_dataloader(train_img_directory: str,
                       validation_xml_directory: str = None,
                       train_dir_is_valid_dir: bool = False,
                       test_pattern: str = None,
+                      test_list: list = [],
                       image_format: str = 'png',
                       train_transforms: Any = None,
                       validation_transforms: Any = None,
@@ -82,7 +83,11 @@ def create_dataloader(train_img_directory: str,
             Default = False
         test_pattern (str):
             Pattern for the image names that should be used as a test
-            set and therefore excluded completely during training.
+            set and therefore be excluded completely during training.
+            Default = None
+        test_list (list):
+            List of image names that should be used as a test
+            set and therefore be excluded completely during training.
             Default = None
         image_format (str):
             Image file format.
@@ -114,7 +119,9 @@ def create_dataloader(train_img_directory: str,
                       if image.endswith(image_format)]
         # exclude images that should be used for testing
         if test_pattern:
-            images = [image for image in images if not image.startswith(test_pattern)]
+            test_list += [image for image in images if image.startswith(test_pattern)]
+        if test_list:
+            images = [image for image in images if image not in test_list]
         # split in training and validation images
         random.shuffle(images)
         train_images = images[:int(train_split*len(images))]
@@ -172,16 +179,17 @@ def create_dataloader(train_img_directory: str,
         dataset=train_dataset,
         batch_size=train_batch_size,
         shuffle=True,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
+        drop_last=True
     )
     validation_loader = DataLoader(
         dataset=validation_dataset,
         batch_size=validation_batch_size,
         shuffle=False,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
+        drop_last=True
     )
-
-    train_val_images_dict = {'test_pattern': test_pattern,
+    train_val_images_dict = {'test_images': test_list,
                              'train_images': train_images,
                              'validation_images': validation_images}
     return train_loader, validation_loader, train_val_images_dict

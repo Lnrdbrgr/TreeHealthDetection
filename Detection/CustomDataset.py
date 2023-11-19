@@ -53,7 +53,8 @@ class CustomDataset(Dataset, pydantic.BaseModel):
     transforms: Any = None
     label_mapping_dict: dict
 
-    @pydantic.root_validator
+    @pydantic.root_validator(skip_on_failure=True)
+    @classmethod
     def extract_all_images(cls, values: dict) -> dict:
         """
         Root validator to extract all image paths. If an image list is

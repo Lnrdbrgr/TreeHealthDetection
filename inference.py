@@ -21,8 +21,8 @@ from Detection.utils import collate_fn, append_dicts, transform_dict
 ######## CONFIG ########
 image_dir = './Data/ProcessedImages'
 xml_dir = './Data/ProcessedImages'
-run_name = '20230728_0858_hbgloc1fasterrcnnresnet'
-model = 'epoch_140_model.pth'
+run_name = '20230807_0830_test-HBG_loc1_FRCNN_resnet'
+model = 'epoch_27_model.pth'
 test_pattern = 'Hachenburg_loc1'
 label_mapping_dict = {'_background_': 0, 'healthy': 1, 'infested': 2, 'dead': 3}
 image_format = 'png'
