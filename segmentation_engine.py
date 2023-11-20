@@ -18,7 +18,7 @@ from Segmentation.utils import create_dataloader, pixel_accuracy, jaccard_accura
 from Segmentation.transformations import train_transforms
 
 ######## CONFIG ########
-learning_rate=0.001
+learning_rate=0.01
 weight_decay=0.0005
 num_epochs = int(input('Number of Epochs: '))
 run_name = str(datetime.now(timezone('Europe/Berlin')).strftime("%Y%m%d_%H%M"))
@@ -50,7 +50,7 @@ model = model.to(device)
 # optimizer
 params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.AdamW(params, lr=learning_rate)
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.8)
+lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.8)
 loss_fn = torch.nn.CrossEntropyLoss()
 
 # initialize loop objects
