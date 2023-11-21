@@ -18,7 +18,7 @@ class UNet3DPreTrained(nn.Module):
         encoder_output = self.encoder(x=x)
         decoder_output = self.decoder(x=encoder_output, orig_x=x)
         #out = torch.argmax(decoder_output, dim=1)
-        out = decoder_output
+        out = torch.softmax(decoder_output, dim=1)
         return out
     
 class EncoderBlock(nn.Module):

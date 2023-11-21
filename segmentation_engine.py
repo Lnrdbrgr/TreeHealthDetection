@@ -10,35 +10,40 @@ from torch.utils.data import DataLoader
 from datetime import datetime
 from pytz import timezone
 import copy
+import pandas as pd
 
 from Segmentation.Models.UNet3DPreTrained import UNet3DPreTrained
 from Segmentation.Custom3DSegmentationDataset import Custom3DSegmentationDataset
 from Detection.utils import visualize_training_output
-from Segmentation.utils import create_dataloader, pixel_accuracy, jaccard_accuracy, write_out_results, evaluate_segmentation_accuracy
+from Segmentation.utils import create_dataloader, write_out_results, evaluate_segmentation_accuracy, write_out_model
 from Segmentation.transformations import train_transforms
 
 ######## CONFIG ########
-learning_rate=0.01
+test_images = 'Pfronstetten_loc1'
+learning_rate=0.001
 weight_decay=0.0005
 num_epochs = int(input('Number of Epochs: '))
-run_name = str(datetime.now(timezone('Europe/Berlin')).strftime("%Y%m%d_%H%M"))
+run_name = str(datetime.now(timezone('Europe/Berlin')).strftime("%Y%m%d_%H%M")) + \
+    '_' + test_images
+resize_to = 64 #1024
 model = UNet3DPreTrained(in_channels=3, out_channels=4,
-                         input_size=512, output_size=512, t=2)
+                         input_size=resize_to, output_size=resize_to, t=2)
 output_save_dir = './Output/'
 data_directory ='./Data/SegmentationImages/'
-train_transforms = train_transforms
+train_transforms = None
 ######## CONFIG ########
 
 
 # make dataset
 train_loader, validation_loader = create_dataloader(
     data_directory=data_directory,
-    random_train_val=True,
-    resize_to=(512, 512),
+    random_train_val=False,
+    validation_images='vert+hor_flip',
+    resize_to=(resize_to, resize_to),
     train_transforms=train_transforms,
-    test_images=None
+    test_images=test_images
 )
-print(f"""Training and Validation Data Loader initialized ✓""")
+print(f"""Training and Validation Data Loader initialized ({resize_to}) ✓""")
 
 # check device
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -58,11 +63,12 @@ training_loss = []
 validation_loss = []
 training_pixel_acc = []
 validation_pixel_acc = []
-training_jaccard_acc = []
-validation_jaccard_acc = []
+training_metrics = pd.DataFrame()
+validation_metrics = pd.DataFrame()
 
 print(f"""Length Training Set: {len(train_loader.dataset)}""")
 print(f"""Length Validation Set: {len(validation_loader.dataset)}""")
+print(f"""Test Images: {test_images}""")
 print(f"""Start Training with {num_epochs} epochs ✓""")
 
 # train model
@@ -86,13 +92,13 @@ for epoch in range(num_epochs):
 
     # store metrics
     eval_model = copy.deepcopy(model)
-    train_loss, train_pixel_acc, train_jaccard_acc = evaluate_segmentation_accuracy(
+    train_loss, train_pixel_acc, train_metrics_df = evaluate_segmentation_accuracy(
         model=eval_model,
         data_loader=train_loader,
         device=device,
         loss_fn=loss_fn
     )
-    val_loss, val_pixel_acc, val_jaccard_acc = evaluate_segmentation_accuracy(
+    val_loss, val_pixel_acc, val_metrics_df = evaluate_segmentation_accuracy(
         model=eval_model,
         data_loader=validation_loader,
         device=device,
@@ -102,8 +108,11 @@ for epoch in range(num_epochs):
     validation_loss.append(val_loss)
     training_pixel_acc.append(train_pixel_acc)
     validation_pixel_acc.append(val_pixel_acc)
-    training_jaccard_acc.append(train_jaccard_acc)
-    validation_jaccard_acc.append(val_jaccard_acc)
+    train_metrics_df['epoch'] = epoch
+    val_metrics_df['epoch'] = epoch
+    training_metrics = pd.concat([training_metrics, train_metrics_df])
+    validation_metrics = pd.concat([validation_metrics, val_metrics_df])
+
 
     # write out results
     if epoch == 5:
@@ -113,8 +122,8 @@ for epoch in range(num_epochs):
                           validation_loss=validation_loss,
                           training_pixel_acc=training_pixel_acc,
                           validation_pixel_acc=validation_pixel_acc,
-                          training_jaccard=training_jaccard_acc,
-                          validation_jaccard=validation_jaccard_acc,
+                          training_metrics_df=training_metrics,
+                          validation_metrics_df=validation_metrics,
                           optimizer=optimizer,
                           learning_rate_scheduler=lr_scheduler,
                           model=model)
@@ -125,8 +134,14 @@ for epoch in range(num_epochs):
                           validation_loss=validation_loss,
                           training_pixel_acc=training_pixel_acc,
                           validation_pixel_acc=validation_pixel_acc,
-                          training_jaccard=training_jaccard_acc,
-                          validation_jaccard=validation_jaccard_acc)
+                          training_metrics_df=training_metrics,
+                          validation_metrics_df=validation_metrics,)
+    # write out model if better than previous model
+    if (epoch > 5) & (validation_pixel_acc[-1] >= max(validation_pixel_acc)):
+        write_out_model(model=model,
+                        output_directory=output_save_dir,
+                        run_name=run_name,
+                        epoch=epoch)
 
     # verbose
     print(f"""Epoch: {epoch} ✓
@@ -134,6 +149,12 @@ for epoch in range(num_epochs):
           Validation Loss: {validation_loss[-5:]}
           Training Pixel Accuracy: {training_pixel_acc[-5:]}
           Validation Pixel Accuracy: {validation_pixel_acc[-5:]}
-          Training Jaccard: {np.mean(training_jaccard_acc[-5:], axis=1)}
-          Validation Jaccard: {np.mean(validation_jaccard_acc[-5:], axis=1)}""")
+          Training Background F1-Score: {list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['background'])[-5:]}
+          Training Healthy F1-Score: {list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['healthy'])[-5:]}
+          Training Infested F1-Score: {list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['infested'])[-5:]}
+          Training Dead F1-Score: {list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['dead'])[-5:]}
+          Validation Background F1-Score: {list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['background'])[-5:]}
+          Validation Healthy F1-Score: {list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['healthy'])[-5:]}
+          Validation Infested F1-Score: {list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['infested'])[-5:]}
+          Validation Dead F1-Score: {list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['dead'])[-5:]}""")
     

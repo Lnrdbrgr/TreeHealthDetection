@@ -42,6 +42,7 @@ def create_dataloader(data_directory: str,
         train_images = random.sample(all_images, int(train_val_split*len(all_images)))
     if isinstance(validation_images, str):
         validation_images = [i for i in all_images if validation_images in i]
+        train_images = list(set(all_images) - set(validation_images))
     else:
         validation_images = list(set(all_images) - set(train_images))
     if not train_images and not validation_images:
@@ -82,18 +83,18 @@ def pixel_accuracy(pred, mask):
     if not pred.shape == mask.shape:
         pred = torch.argmax(pred, dim=1)
     correct_pixels = (pred == mask).sum()
-    all_pixels = mask.shape[1] * mask.shape[1]
+    all_pixels = mask.shape[1] * mask.shape[2]
     acc = correct_pixels / all_pixels
     return acc
 
 
-def jaccard_accuracy(pred: torch.tensor, mask) -> list:
+def jaccard_accuracy(pred: torch.tensor, mask):
     """Returns accuracy for class 0, 1, 2, ...
-    """
+    """ 
     if not pred.shape == mask.shape:
         pred = torch.argmax(pred, dim=1)
-    pred = pred.flatten().numpy()
-    mask = mask.flatten().numpy()
+    pred = pred.cpu().flatten().numpy()
+    mask = mask.cpu().flatten().numpy()
     jaccard = jaccard_score(pred, mask, average=None)
     return jaccard
 
@@ -110,7 +111,7 @@ def evaluate_segmentation_accuracy(model: torch.nn.Module,
         # initiate loop objects
         loss = []
         pixel_acc = []
-        jaccard_acc = []
+        metrics_df = pd.DataFrame()
         for images, target in data_loader:
             # move data to device
             images = images.to(device)
@@ -118,13 +119,17 @@ def evaluate_segmentation_accuracy(model: torch.nn.Module,
             # make prediction
             preds = model(images)
             # store metrics
-            loss.append(loss_fn(preds, target))
-            pixel_acc.append(pixel_accuracy(pred=preds, mask=target))
-            jaccard_acc.append(jaccard_accuracy(pred=preds, mask=target))
+            loss.append(loss_fn(preds, target).cpu())
+            pixel_acc.append(pixel_accuracy(pred=preds, mask=target).cpu())
+            # store F1-Score
+            class_predictions = torch.argmax(preds, dim=1)
+            metrics_df = pd.concat(
+                [metrics_df, precision_recall_f1score(true_mask=target.numpy(), pred_mask=class_predictions.numpy())]
+            )
     loss = np.mean(loss)
     pixel_acc = np.mean(pixel_acc)
-    jaccard_acc = np.mean(np.array(jaccard_acc), axis=0)
-    return loss, pixel_acc, jaccard_acc
+    metrics_df = metrics_df.groupby('metric').mean().reset_index()
+    return loss, pixel_acc, metrics_df
 
 
 def write_out_results(output_directory: str,
@@ -133,8 +138,8 @@ def write_out_results(output_directory: str,
                       validation_loss: list = None,
                       training_pixel_acc: list = None,
                       validation_pixel_acc: list = None,
-                      training_jaccard: list = None,
-                      validation_jaccard: list = None,
+                      training_metrics_df: pd.DataFrame = None,
+                      validation_metrics_df: pd.DataFrame = None,
                       optimizer: torch.optim.Optimizer = None,
                       learning_rate_scheduler: torch.optim.lr_scheduler.StepLR = None,
                       model: torch.nn.Module = None) -> None:
@@ -157,23 +162,10 @@ def write_out_results(output_directory: str,
                                 'ValidationAccuracy': validation_pixel_acc})
         loss_df.to_csv(os.path.join(save_direc, 'pixel_accuracy.csv'), index=False)
         print(f"""Pixel Accuracy Saved ✓""")
-    if training_jaccard:
-        training_jaccard_df = pd.DataFrame(
-            training_jaccard,
-            columns=['Background', 'Healthy', 'Infested', 'Dead']
-        )
-        training_jaccard_df['Epoch'] = range(training_jaccard_df.shape[0])
-        training_jaccard_df.to_csv(os.path.join(save_direc, 'train_jaccard.csv'),
-                                   index=False)
-        print(f"""Jaccard Accuracy Saved ✓""")
-    if validation_jaccard:
-        validation_jaccard_df = pd.DataFrame(
-            validation_jaccard,
-            columns=['Background', 'Healthy', 'Infested', 'Dead']
-        )
-        validation_jaccard_df['Epoch'] = range(validation_jaccard_df.shape[0])
-        validation_jaccard_df.to_csv(os.path.join(save_direc, 'validation_jaccard.csv'),
-                                   index=False)
+    if training_metrics_df is not None:
+        training_metrics_df.to_csv(os.path.join(save_direc, 'training_metrics.csv'), index=False)
+    if validation_metrics_df is not None:
+        validation_metrics_df.to_csv(os.path.join(save_direc, 'validation_metrics.csv'), index=False)
     if model:
         with open(os.path.join(save_direc, 'model.txt'), 'w+') as f:
             print(model, file=f)
@@ -186,3 +178,53 @@ def write_out_results(output_directory: str,
         with open(os.path.join(save_direc, 'learning_rate.txt'), 'w+') as f:
             print(learning_rate_scheduler.state_dict(), file=f)
         print(f"""Learning Rate Data Saved ✓""")
+
+
+def write_out_model(model: torch.nn.Module,
+                    output_directory: str,
+                    run_name: str,
+                    epoch: int = None):
+    """Write out the model to the specified output directory.
+
+    Args:
+        model (torch.nn.Module):
+            The model to save.
+        output_directory (str):
+            The directory to save the model and data.
+        run_name (str):
+            The name of the current run or experiment.
+    """
+    # generate output directory
+    save_direc = os.path.join(os.getcwd(), output_directory, run_name)
+    # make directory if not exists
+    if not os.path.exists(save_direc):
+        os.makedirs(save_direc)
+    # make model saving directory
+    model_save_direc = os.path.join(os.getcwd(), output_directory, run_name, 'models')
+    if not os.path.exists(model_save_direc):
+        os.makedirs(model_save_direc)
+    # save model
+    torch.save(model, os.path.join(model_save_direc, ('epoch_' + str(epoch) + '_model.pth')))
+    print(f"""Model Saved ✓""")
+
+
+def precision_recall_f1score(true_mask: np.array,
+                             pred_mask: np.array,
+                             class_translation_dict: dict = {0: 'background', 1: 'healthy', 2: 'infested', 3: 'dead'}) -> pd.DataFrame:
+    """
+    """
+    classes = np.sort(np.unique(true_mask))
+    result_dict = {'metric': ['no_pixels', 'share_pixels', 'precision', 'recall', 'f1_score']}
+    for c in classes:
+        tp = np.logical_and(true_mask == c, pred_mask == c).sum()
+        fp = np.logical_and(true_mask != c, pred_mask == c).sum()
+        fn = np.logical_and(true_mask == c, pred_mask != c).sum()
+        # conditions account for division by zero
+        no_pixels = (true_mask == c).sum()
+        share_pixels = no_pixels / true_mask.size
+        precision = (tp + fp) and tp / (tp + fp) or 0
+        recall = (tp + fn) and tp / (tp + fn) or 0
+        f1_score = 2*tp / (2*tp + fp + fn)
+        result_dict[class_translation_dict[c]] = [no_pixels, share_pixels, precision, recall, f1_score]
+    result_df = pd.DataFrame(result_dict)
+    return result_df
