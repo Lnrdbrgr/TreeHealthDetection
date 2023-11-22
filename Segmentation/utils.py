@@ -124,7 +124,7 @@ def evaluate_segmentation_accuracy(model: torch.nn.Module,
             # store F1-Score
             class_predictions = torch.argmax(preds, dim=1)
             metrics_df = pd.concat(
-                [metrics_df, precision_recall_f1score(true_mask=target.numpy(), pred_mask=class_predictions.numpy())]
+                [metrics_df, precision_recall_f1score(true_mask=target.cpu().numpy(), pred_mask=class_predictions.cpu().numpy())]
             )
     loss = np.mean(loss)
     pixel_acc = np.mean(pixel_acc)

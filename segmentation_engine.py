@@ -13,6 +13,7 @@ import copy
 import pandas as pd
 
 from Segmentation.Models.UNet3DPreTrained import UNet3DPreTrained
+from Segmentation.Models.UNet3D import UNet3D
 from Segmentation.Custom3DSegmentationDataset import Custom3DSegmentationDataset
 from Detection.utils import visualize_training_output
 from Segmentation.utils import create_dataloader, write_out_results, evaluate_segmentation_accuracy, write_out_model
@@ -20,14 +21,15 @@ from Segmentation.transformations import train_transforms
 
 ######## CONFIG ########
 test_images = 'Pfronstetten_loc1'
-learning_rate=0.001
+learning_rate=0.01
 weight_decay=0.0005
 num_epochs = int(input('Number of Epochs: '))
 run_name = str(datetime.now(timezone('Europe/Berlin')).strftime("%Y%m%d_%H%M")) + \
     '_' + test_images
-resize_to = 64 #1024
-model = UNet3DPreTrained(in_channels=3, out_channels=4,
-                         input_size=resize_to, output_size=resize_to, t=2)
+resize_to = 512
+#model = UNet3DPreTrained(in_channels=3, out_channels=4,
+#                         input_size=resize_to, output_size=resize_to, t=2)
+model = UNet3D(in_channels=3, out_channels=4)
 output_save_dir = './Output/'
 data_directory ='./Data/SegmentationImages/'
 train_transforms = None
@@ -55,8 +57,11 @@ model = model.to(device)
 # optimizer
 params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.AdamW(params, lr=learning_rate)
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.8)
-loss_fn = torch.nn.CrossEntropyLoss()
+lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.7)
+weights = torch.tensor([1, 2.77, 14.11, 22.09]).to(device)
+loss_fn = torch.nn.CrossEntropyLoss(
+    weight=weights
+)
 
 # initialize loop objects
 training_loss = []
@@ -145,16 +150,16 @@ for epoch in range(num_epochs):
 
     # verbose
     print(f"""Epoch: {epoch} ✓
-          Training Loss: {training_loss[-5:]}
-          Validation Loss: {validation_loss[-5:]}
-          Training Pixel Accuracy: {training_pixel_acc[-5:]}
-          Validation Pixel Accuracy: {validation_pixel_acc[-5:]}
-          Training Background F1-Score: {list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['background'])[-5:]}
-          Training Healthy F1-Score: {list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['healthy'])[-5:]}
-          Training Infested F1-Score: {list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['infested'])[-5:]}
-          Training Dead F1-Score: {list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['dead'])[-5:]}
-          Validation Background F1-Score: {list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['background'])[-5:]}
-          Validation Healthy F1-Score: {list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['healthy'])[-5:]}
-          Validation Infested F1-Score: {list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['infested'])[-5:]}
-          Validation Dead F1-Score: {list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['dead'])[-5:]}""")
+          Training Loss: {np.round(training_loss[-5:], 4)}
+          Validation Loss: {np.round(validation_loss[-5:], 4)}
+          Training Pixel Accuracy: {np.round(training_pixel_acc[-5:], 4)}
+          Validation Pixel Accuracy: {np.round(validation_pixel_acc[-5:], 4)}
+          Training Background F1-Score: {np.round(list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['background'])[-5:], 4)}
+          Training Healthy F1-Score: {np.round(list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['healthy'])[-5:], 4)}
+          Training Infested F1-Score: {np.round(list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['infested'])[-5:], 4)}
+          Training Dead F1-Score: {np.round(list(training_metrics.query('metric == "f1_score"').sort_values('epoch')['dead'])[-5:], 4)}
+          Validation Background F1-Score: {np.round(list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['background'])[-5:], 4)}
+          Validation Healthy F1-Score: {np.round(list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['healthy'])[-5:], 4)}
+          Validation Infested F1-Score: {np.round(list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['infested'])[-5:], 4)}
+          Validation Dead F1-Score: {np.round(list(validation_metrics.query('metric == "f1_score"').sort_values('epoch')['dead'])[-5:], 4)}""")
     
