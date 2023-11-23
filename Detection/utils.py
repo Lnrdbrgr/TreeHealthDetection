@@ -4,6 +4,7 @@ and model training phase.
 
 import json
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
 import os
 import pandas as pd
@@ -12,6 +13,7 @@ import torch
 from torch.utils.data import DataLoader
 from typing import Tuple, Any
 from xml.etree import ElementTree as et
+import copy
 
 from Detection.CustomDataset import CustomDataset
 
@@ -530,3 +532,239 @@ def extract_bboxes_from_xml(bboxes_path: str,
         boxes.append([xmin, ymin, xmax, ymax])
 
     return boxes, labels
+
+def compute_iou(box1, box2):
+    """
+    Compute the Intersection over Union (IoU) of two bounding boxes.
+
+    Parameters:
+        box1 (list): List representing the first bounding box in format [xmin, ymin, xmax, ymax].
+        box2 (list): List representing the second bounding box in format [xmin, ymin, xmax, ymax].
+
+    Returns:
+        float: Intersection over Union (IoU) value.
+    """
+    # Calculate the coordinates of the intersection rectangle
+    xmin_intersection = max(box1[0], box2[0])
+    ymin_intersection = max(box1[1], box2[1])
+    xmax_intersection = min(box1[2], box2[2])
+    ymax_intersection = min(box1[3], box2[3])
+
+    # If there is no intersection, return IoU as 0
+    if xmin_intersection >= xmax_intersection or ymin_intersection >= ymax_intersection:
+        return 0.0
+
+    # Calculate the areas of the intersection and union rectangles
+    intersection_area = (xmax_intersection - xmin_intersection) * (ymax_intersection - ymin_intersection)
+    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+
+    # Calculate the IoU value
+    iou = intersection_area / float(box1_area + box2_area - intersection_area)
+    return iou
+
+
+def get_adjusted_predictions(predictions, threshold_dict, label_dict=None):
+    """
+    label_dict in form and default:
+    label_dict = {1: 'healthy', 2: 'infested', 3: 'dead'}
+    """
+    if label_dict is None:
+        label_dict = {1: 'healthy', 2: 'infested', 3: 'dead'}
+    # extract boxes and labels from prediction
+    boxes = predictions[0]['boxes'].numpy()
+    labels = predictions[0]['labels'].numpy()
+    scores = predictions[0]['scores'].numpy()
+    # prepare loop helper
+    res_dict = {}
+    for _, v in label_dict.items():
+        res_dict[v] = {'boxes': [], 'scores': [], 'labels': []}
+    # loop through predictions and extract adjusted once
+    for box, label, score in zip(boxes, labels, scores):
+        if score > threshold_dict[label_dict[label]]:
+            res_dict[label_dict[label]]['boxes'].append(box.tolist())
+            res_dict[label_dict[label]]['scores'].append(round(score, 4))
+            res_dict[label_dict[label]]['labels'].append(label)
+    # remove boxes that overlap by threshold
+    for k, v in label_dict.items():
+        b, s, l = filter_boxes(res_dict[v]['boxes'],
+                               res_dict[v]['scores'],
+                               k,
+                               0.75)
+        res_dict[v]['boxes'] = b
+        res_dict[v]['scores'] = s
+        res_dict[v]['labels'] = l
+    # get an everything list again
+    b = []; s = []; l = []
+    for _, v in label_dict.items():
+        b = b + res_dict[v]['boxes']
+        l = l + res_dict[v]['labels']
+        s = s + res_dict[v]['scores']
+    all_boxes = list(zip(b, l, s))
+    return res_dict, all_boxes
+
+
+def get_adjusted_ground_truth(ground_truth, rev_label_dict=None):
+    """
+    rev_label_dict in form and default:
+    rev_label_dict = {'healthy': 1,'infested': 2, 'dead': 3}
+    """
+    if rev_label_dict is None:
+        rev_label_dict = {'healthy': 1,'infested': 2, 'dead': 3}
+    # prepare loop helper
+    gt_dict = {}
+    for k, _ in rev_label_dict.items():
+        gt_dict[k] = {'boxes': [], 'labels': []}
+    # loop through true labels and extract based on class
+    for b in ground_truth:
+        box = b[0]
+        label = b[1]
+        gt_dict[label]['boxes'].append(box)
+        gt_dict[label]['labels'].append(rev_label_dict[label])
+    return gt_dict
+
+
+def precision_recall_f1score_detection(pred_boxes,
+                                       true_boxes,
+                                       iou_threshold):
+    """
+    return_metrics: if true returns tuple (precision, recall, f1_score)
+        if false returns tuple (tp, fp, fn)
+    """
+    tb = copy.deepcopy(true_boxes)
+    tp = 0
+    fp = 0
+    fn = 0
+    # loop prediction boxes
+    for pred_box in pred_boxes:
+        iou_max = 0
+        match_index = -1
+        # check with true box
+        for i, true_box in enumerate(tb):
+            iou = compute_iou(pred_box, true_box)
+            if iou > iou_max:
+                iou_max = iou
+                match_index = i
+        if iou_max >= iou_threshold:
+            tp += 1
+            tb.pop(match_index)
+        else:
+            fp += 1
+
+    fn = len(tb)
+
+    # compute precision/recall scores
+    precision = (tp + fp) and tp / (tp + fp) or 0
+    recall = (tp + fn) and tp / (tp + fn) or 0
+    f1_score = (tp + fp + fn) and 2*tp / (2*tp + fp + fn) or 0
+
+    result_dict = {
+        'tp': tp, 'fp': fp, 'fn': fn,
+        'precision': precision, 'recall': recall, 'f1_score': f1_score
+    }
+    return result_dict
+
+
+def filter_boxes(pred_boxes, scores, label, iou_threshold):
+    """
+    """
+    # Combine predicted boxes and scores into a list of tuples
+    box_with_scores = list(zip(pred_boxes, scores))
+
+    # Sort the list by scores in descending order
+    box_with_scores.sort(key=lambda x: x[1], reverse=True)
+
+    # Initialize a list to store the filtered boxes
+    filtered_boxes = []
+    filtered_scores = []
+    labels = []
+
+    while box_with_scores:
+        box1, score1 = box_with_scores.pop(0)
+        boxes_to_remove = []
+
+        for i, (box2, score2) in enumerate(box_with_scores):
+            iou = compute_iou(box1, box2)
+
+            if iou >= iou_threshold:
+                # Remove the box with the lower score
+                if score1 > score2:
+                    boxes_to_remove.append(i)
+                else:
+                    boxes_to_remove.append(0)
+
+        # Remove the marked boxes
+        box_with_scores = [box_with_scores[i] for i in range(len(box_with_scores)) if i not in boxes_to_remove]
+
+        # Add the box with the higher score to the filtered list
+        filtered_boxes.append(box1)
+        filtered_scores.append(score1)
+        labels.append(label)
+
+    return filtered_boxes, filtered_scores, labels
+
+
+def plot_pred_vs_true(image_path,
+                      all_boxes_pred,
+                      all_boxes_ground_truth,
+                      label_dict=None,
+                      color_dict_1=None,
+                      color_dict_2=None,
+                      show=True,
+                      save_path=None):
+    """
+    all_boxes_pred and all_boxes_ground_truth in form
+    list(tuple(box, label [score]))
+    
+    dicts in form and default:
+    label_dict = {1: 'healthy', 2: 'infested', 3: 'dead'}
+    color_dict_1 = {1: '#ffffff', 2: '#ffa500', 3: '#cb577a'}
+    color_dict_2 = {'healthy': '#ffffff', 'infested': '#ffa500', 'dead': '#cb577a'}
+    """
+    if label_dict is None:
+        label_dict = {1: 'healthy', 2: 'infested', 3: 'dead'}
+    if color_dict_1 is None:
+        color_dict_1 = {1: '#ffffff', 2: '#ffa500', 3: '#cb577a'}
+    if color_dict_2 is None:
+        color_dict_2 = {'healthy': '#ffffff', 'infested': '#ffa500', 'dead': '#cb577a'}
+
+    # read in image
+    image = plt.imread(image_path)
+
+    # make plot
+    fig, ax = plt.subplots(1, 2, figsize=(15, 7))
+
+    # plot predictions
+    for box, label, score in all_boxes_pred:
+        rect = patches.Rectangle((box[0], box[1]), box[2]-box[0], box[3]-box[1],
+                                    linewidth=1.5,
+                                    edgecolor=color_dict_1[label],
+                                    facecolor='none')
+        ax[0].add_patch(rect)
+        ax[0].text(box[0], box[1]-2,
+                f'{label_dict[label]} - {score:.2f}',
+                fontsize=11, color=color_dict_1[label],
+                fontweight='bold')
+    ax[0].imshow(image)
+    ax[0].axis('off')
+
+    # plot ground truth
+    for box, label in all_boxes_ground_truth:
+        rect = patches.Rectangle((box[0], box[1]), box[2]-box[0], box[3]-box[1],
+                                    linewidth=1.5,
+                                    edgecolor=color_dict_2[label],
+                                    facecolor='none')
+        ax[1].add_patch(rect)
+        ax[1].text(box[0], box[1]-2,
+                f'{label}',
+                fontsize=11, color=color_dict_2[label],
+                fontweight='bold')
+    ax[1].imshow(image)
+    ax[1].axis('off')
+
+    fig.tight_layout()
+
+    if save_path is not None:
+        fig.savefig(save_path)
+    if not show:
+        plt.close(fig)

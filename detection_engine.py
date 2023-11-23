@@ -17,12 +17,12 @@ from Detection.utils import create_dataloader, evaluate_loss, train_one_epoch, \
 from Detection.evaluation_utils import evaluate_MAP
 
 ######## CONFIG ########
-model = create_ssd300_vgg16_model(3)
+model = create_FasterRCNN_resnet50_model(3)
 learning_rate=0.0001
 weight_decay=0.0005
-num_epochs = int(input('Number of Epochs: '))
+num_epochs = 75 # int(input('Number of Epochs: '))
 test_pattern = 'Pfronstetten_loc3'
-test_list = None # './Data/test_images.json'
+test_list = './Data/test_images_v2.json'
 output_save_dir = 'Output'
 run_name = str(datetime.now(timezone('Europe/Berlin')).strftime("%Y%m%d_%H%M"))
 train_transformations = train_transforms
