@@ -19,7 +19,7 @@ from Detection.utils import visualize_training_output
 from Segmentation.utils import create_dataloader, write_out_results, evaluate_segmentation_accuracy, write_out_model
 from Segmentation.transformations import train_transforms
 
-test_loc = ['Haiterbach_loc1']
+test_loc = ['Pfronstetten_loc1']
 
 for loc in test_loc:
     print(f'start: {loc}')
@@ -28,7 +28,7 @@ for loc in test_loc:
     test_images = loc
     learning_rate=0.01
     weight_decay=0.0005
-    num_epochs = 150 # int(input('Number of Epochs: '))
+    num_epochs = 300 # int(input('Number of Epochs: '))
     run_name = str(datetime.now(timezone('Europe/Berlin')).strftime("%Y%m%d_%H%M")) + \
         '_' + test_images
     resize_to = 512
@@ -62,9 +62,9 @@ for loc in test_loc:
     # optimizer
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(params, lr=learning_rate)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.7)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.8)
     #weights = torch.tensor([1, 2.77, 14.11, 22.09]).to(device)
-    weights = torch.tensor([1, 2.77, 20, 15]).to(device)
+    weights = torch.tensor([1, 2.77, 15, 15]).to(device)
     loss_fn = torch.nn.CrossEntropyLoss(
         weight=weights
     )

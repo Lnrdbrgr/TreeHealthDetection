@@ -89,6 +89,7 @@ class UNet3D(nn.Module):
 
         block.add_module('conv1', nn.Conv3d(in_channels, out_channels, kernel_size=(1, 3, 3), stride=2, padding=1))
         block.add_module('conv2', nn.Conv3d(out_channels, out_channels, kernel_size=(1, 1, 1)))
+        block.add_module('conv2', nn.Conv3d(out_channels, out_channels, kernel_size=(1, 1, 1)))
         block.add_module('bn', nn.BatchNorm3d(out_channels))
         block.add_module('activation', nn.LeakyReLU())
         return block
@@ -113,6 +114,7 @@ class UNet3D(nn.Module):
         block = nn.Sequential()
 
         block.add_module('conv1', nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1)))
+        block.add_module('conv2', nn.Conv2d(out_channels, out_channels, kernel_size=(1, 1)))
         block.add_module('bn', nn.BatchNorm2d(out_channels))
         block.add_module('activation', nn.LeakyReLU())
         return block
@@ -126,6 +128,7 @@ class UNet3D(nn.Module):
         block.add_module('con1', nn.ConvTranspose2d(in_channels, in_channels,
                                                     kernel_size=upsample_factor, stride=upsample_factor))
         block.add_module('conv2', nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1)))
+        block.add_module('conv3', nn.Conv2d(out_channels, out_channels, kernel_size=(1, 1)))
         block.add_module('bn', nn.BatchNorm2d(out_channels))
         block.add_module('activation', nn.LeakyReLU())
         

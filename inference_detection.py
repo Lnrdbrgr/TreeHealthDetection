@@ -14,100 +14,47 @@ from Detection.utils import extract_bboxes_from_xml, get_adjusted_predictions, \
     get_adjusted_ground_truth, precision_recall_f1score_detection, \
     plot_pred_vs_true
 
-test_location_id_loop = [
-'Hachenburg_loc1','Hachenburg_loc1','Hachenburg_loc1',
-'Hachenburg_loc2','Hachenburg_loc2','Hachenburg_loc2',
-'Haiterbach_loc1','Haiterbach_loc1','Haiterbach_loc1',
-'Pfronstetten_loc1','Pfronstetten_loc1','Pfronstetten_loc1',
-'Pfronstetten_loc2','Pfronstetten_loc2','Pfronstetten_loc2',
-'Pfronstetten_loc3','Pfronstetten_loc3','Pfronstetten_loc3',
-'Hachenburg_loc2','Haiterbach_loc1',
-'Pfronstetten_loc1','Pfronstetten_loc2','Pfronstetten_loc3',
+inference_detection_model_list = pd.read_csv('./inference_detection_model_list.csv', delimiter=';')
 
-]
+runs = os.listdir('./Output')
+runs = [r for r in runs if 'v2' in r]
 
+for run in runs:
+    
+    print(run)
+    
+    f = os.listdir('Output/' + run + '/')
+    if 'Inference' in f:
+        f2 = os.listdir('Output/' + run + '/' + 'Inference')
+        if 'overall_result_df.csv' in f2:
+            print('Skip')
+            continue
 
-run_loop = [
- '20230807_1146_test-HBG_loc1_RetinaNet',
- '20230807_1346_test_HBG_loc1_FRCNN_mobilenet',
- '20230807_1559_test_HBG_loc1_SSD_vgg16',
- '20230810_1628_test_HBG_loc2_FRCNN_resnet',
- '20230810_1920_test_HBG_loc2_RetinaNet',
- '20230810_2051_test_HBG_loc2_FRCNN_mobilenet',
- '20230811_0909_test_Haiterbach_loc1_FRCNN_resnet',
- '20230812_1032_test_Haiterbach_loc1_RetinaNet',
- '20230817_1040_test_Haiterbach_loc1_FRCNN_mobilenet',
- '20230817_1443_test_Pfronstetten_loc1_FRCNN_resnet',
- '20230818_0933_test_Pfronstetten_loc1_RetinaNet',
- '20230818_2153_test_Pfronstetten_loc1_FRCNN_mobilenet',
- '20230819_0856_test_Pfronstetten_loc2_FRCNN_resnet',
- '20230821_0914_test_Pfronstetten_loc2_RetinaNet',
- '20230821_1330_test_Pfronstetten_loc2_FRCNN_mobilenet',
- '20230821_1439_test_Pfronstetten_loc3_FRCNN_resnet',
- '20230822_0809_test_Pfronstetten_loc3_RetinaNet',
- '20230822_1111_test_Pfronstetten_loc3_FRCNN_mobilenet',
- '20230828_1824_test_HBG_loc2_SSD_vgg16',
- '20230831_1010_test_Haiterbach_loc1_SSD_vgg16',
- '20230831_1125_test_Pfronstetten_loc1_SSD_vgg16',
- '20230831_1229_test_Pfronstetten_loc2_SSD_vgg16',
- '20230831_1613_test_Pfronstetten_loc3_SSD_vgg16',
-]
-
-model_loop = [
-'epoch_26_model.pth',
-'epoch_25_model.pth',
-'epoch_69_model.pth',
-'epoch_27_model.pth',
-'epoch_23_model.pth',
-'epoch_17_model.pth',
-'epoch_34_model.pth',
-'epoch_25_model.pth',
-'epoch_25_model.pth',
-'epoch_59_model.pth',
-'epoch_35_model.pth',
-'epoch_17_model.pth',
-'epoch_33_model.pth',
-'epoch_35_model.pth',
-'epoch_29_model.pth',
-'epoch_25_model.pth',
-'epoch_72_model.pth',
-'epoch_36_model.pth',
-'epoch_43_model.pth',
-'epoch_33_model.pth',
-'epoch_50_model.pth',
-'epoch_59_model.pth',
-'epoch_48_model.pth',
-]
-
-loop_obj = list(zip(test_location_id_loop, run_loop, model_loop))
-
-for test_location_id_l, run_l, model_l in loop_obj:
+    model_oi = [m for m in inference_detection_model_list['model'].unique() if m in run][0]
+    location_oi = [l for l in inference_detection_model_list['location_id'].unique() if l in run][0]
+    model = inference_detection_model_list.query('location_id == @location_oi & model == @model_oi')['epoch'].item()
+    model = 'epoch_' + str(model) + '_model.pth'
 
 
     ######## CONFIG ########
-    test_location_id = test_location_id_l # 'Haiterbach_loc1'
-    run = run_l + '/' # '20230824_0916_test_all_FRCNN_resnet/'
-    model = model_l # 'epoch_48_model.pth'
+    test_location_id = location_oi # 'Haiterbach_loc1'
+    run = run + '/' # '20230824_0916_test_all_FRCNN_resnet/'
+    model = model # 'epoch_48_model.pth'
     all = False # all images and test images used
     run_path = 'Output/' + run
     save_path = run_path + 'Inference/'
     img_save_path = save_path + 'PredictionImages/'
-    #image_path = 'Data/ProcessedImages/'
-    #bbox_path = 'Data/ProcessedImages/'
-    image_path = 'C:/Users/leona/Documents/06_MasterThesis/Data/BackUp/Backup_2023-11-23/ProcessedImages/'
-    bbox_path = 'C:/Users/leona/Documents/06_MasterThesis/Data/BackUp/Backup_2023-11-23/ProcessedImages/'
+    image_path = 'Data/ProcessedImages/'
+    bbox_path = 'Data/ProcessedImages/'
+    #image_path = 'C:/Users/leona/Documents/06_MasterThesis/Data/BackUp/Backup_2023-11-23/ProcessedImages/'
+    #bbox_path = 'C:/Users/leona/Documents/06_MasterThesis/Data/BackUp/Backup_2023-11-23/ProcessedImages/'
     img_format = '.png'
     bbox_format = '.xml'
     classes = ['healthy', 'infested', 'dead']
     threshold_dict = {'healthy': 0.5, 'infested': 0.1, 'dead': 0.5}
     ######## CONFIG ########
     
-    f = os.listdir(run_path)
-    if 'Inference' in f:
-        continue
 
-
-    print(run_l)
 
     # read in model
     model_path = os.path.join(run_path, 'models', model)
@@ -118,7 +65,7 @@ for test_location_id_l, run_l, model_l in loop_obj:
     # extract image files
     if all:
         print(f"""Test Location: All""")
-        with open('./Data/test_images.json') as f:
+        with open('./Data/test_images_v2.json') as f:
             img_files = json.load(f)
             img_files = [i[:-4] for i in img_files]
     else:

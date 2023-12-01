@@ -46,6 +46,7 @@ def create_dataloader(train_img_directory: str,
                       label_mapping_dict: dict,
                       validation_img_directory: str = None,
                       validation_xml_directory: str = None,
+                      train_validation_dict: dict = None,
                       train_dir_is_valid_dir: bool = False,
                       test_pattern: str = None,
                       test_list: list = [],
@@ -125,9 +126,13 @@ def create_dataloader(train_img_directory: str,
         if test_list:
             images = [image for image in images if image not in test_list]
         # split in training and validation images
-        random.shuffle(images)
-        train_images = images[:int(train_split*len(images))]
-        validation_images = images[int(train_split*len(images)):]
+        if train_validation_dict:
+            train_images = train_validation_dict['train_images']
+            validation_images = train_validation_dict['validation_images']
+        else:
+            random.shuffle(images)
+            train_images = images[:int(train_split*len(images))]
+            validation_images = images[int(train_split*len(images)):]
         # make training dataset
         train_dataset = CustomDataset(
             image_dir=train_img_directory,
@@ -590,7 +595,7 @@ def get_adjusted_predictions(predictions, threshold_dict, label_dict=None):
         b, s, l = filter_boxes(res_dict[v]['boxes'],
                                res_dict[v]['scores'],
                                k,
-                               0.75)
+                               0.5)
         res_dict[v]['boxes'] = b
         res_dict[v]['scores'] = s
         res_dict[v]['labels'] = l
