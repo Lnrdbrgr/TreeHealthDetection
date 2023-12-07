@@ -1,11 +1,24 @@
-"""
-"""
-
 import torch
 import torch.nn as nn
 
 
 class UNet3D(nn.Module):
+    """
+    3D U-Net model for 3D segmentation. This model consists of an encoder and
+    decoder architecture designed for processing 3D time series like data.
+
+    The encoder downsamples the input volume through a series of 3D convolutional
+    blocks, reducing the spatial dimensions and capturing hierarchical features.
+    The decoder then upsamples the encoded features and incorporates skip
+    connections to fuse high-resolution details. The final layer produces a
+    segmentation output with softmax activation.
+
+    Args:
+        in_channels (int):
+            Number of input channels.
+        out_channels (int):
+            Number of output channels (classes).
+    """
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.in_channels = in_channels

@@ -1,4 +1,4 @@
-"""
+"""Class for Custom 3D Segmentation Dataset.
 """
 
 import albumentations as A
@@ -17,6 +17,32 @@ from xml.etree import ElementTree as et
 
 class Custom3DSegmentationDataset(Dataset, pydantic.BaseModel):
     """
+    Dataset class for custom 3D segmentation data.
+
+    This class is designed to work with 3D segmentation datasets where each
+    sample consists of a directory containing multiple images and a corresponding
+    segmentation mask. The images are expected to be named 'image_X.png', where
+    X is an index, and the segmentation mask is named 'mask.png'.
+
+    Args:
+        data_dir (str):
+            Path to the root directory of the dataset.
+        data_list (list, optional):
+            List of specific data folders to include. If not provided, all data
+            folders in the 'data_dir' will be used.
+            Default is None.
+        resize_to (Tuple):
+            Tuple specifying the target size for resizing images in the format
+            (height, width).
+        transforms (Any, optional):
+            Augmentation transforms to be applied to the images and masks.
+            Default is None.
+
+    Attributes:
+        data_folder (list):
+            List of data folders in the dataset.
+        resize_transform (albumentations.Compose):
+            Resize transformation applied to images.
     """
     data_dir: str
     data_list: list | None = None

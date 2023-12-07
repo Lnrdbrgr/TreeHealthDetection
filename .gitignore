@@ -9,3 +9,4 @@ Output/
 
 # Notebooks and scripts
 **/*.ipynb
+*.csv

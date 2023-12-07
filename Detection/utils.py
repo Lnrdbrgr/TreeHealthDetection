@@ -289,6 +289,8 @@ def write_out_results(output_directory: str,
             The directory to save the model and data.
         run_name (str):
             The name of the current run or experiment.
+        model (torch.nn.Module, optional):
+            The PyTorch model to be saved.
         training_loss (list, optional):
             The list of training loss values for each epoch.
         validation_loss (list, optional):
@@ -299,8 +301,12 @@ def write_out_results(output_directory: str,
             The list of validation MAP values for each epoch.
         optimizer (torch.optim.Optimizer, optional):
             The optimizer used for training.
+        learning_rate_scheduler (torch.optim.lr_scheduler.StepLR, optional):
+            The learning rate scheduler used during training.
+        train_transformations (Any, optional):
+            Information about the transformations applied during training.
         write_out_dicts (dict):
-            A dictionary containing other dictionary that should
+            A dictionary containing other dictionaries that should
             be written out. The keys are used as filenames.
     """
     # generate output directory
@@ -352,7 +358,7 @@ def write_out_results(output_directory: str,
 def write_out_model(model: torch.nn.Module,
                     output_directory: str,
                     run_name: str,
-                    epoch: int = None):
+                    epoch: int):
     """Write out the model to the specified output directory.
 
     Args:
@@ -362,6 +368,8 @@ def write_out_model(model: torch.nn.Module,
             The directory to save the model and data.
         run_name (str):
             The name of the current run or experiment.
+        epoch (int):
+            The epoch iteration.
     """
     # generate output directory
     save_direc = os.path.join(os.getcwd(), output_directory, run_name)
@@ -514,9 +522,6 @@ def extract_bboxes_from_xml(bboxes_path: str,
         class_label_name (str, optional):
             Name of the class label in the XML file.
             Default = 'name'.
-        resize_to (tuple, optional):
-            Target size for resizing the image.
-            Default = None.
 
     Returns:
         Tuple[list, list]: Bounding boxes and labels as lists.
@@ -538,13 +543,16 @@ def extract_bboxes_from_xml(bboxes_path: str,
 
     return boxes, labels
 
-def compute_iou(box1, box2):
+def compute_iou(box1: list,
+                box2: list) -> float:
     """
     Compute the Intersection over Union (IoU) of two bounding boxes.
 
     Parameters:
-        box1 (list): List representing the first bounding box in format [xmin, ymin, xmax, ymax].
-        box2 (list): List representing the second bounding box in format [xmin, ymin, xmax, ymax].
+        box1 (list): List representing the first bounding box in format
+            [xmin, ymin, xmax, ymax].
+        box2 (list): List representing the second bounding box in format
+            [xmin, ymin, xmax, ymax].
 
     Returns:
         float: Intersection over Union (IoU) value.
@@ -569,10 +577,31 @@ def compute_iou(box1, box2):
     return iou
 
 
-def get_adjusted_predictions(predictions, threshold_dict, label_dict=None):
+def get_adjusted_predictions(predictions: list,
+                             threshold_dict: dict,
+                             label_dict: dict = None,
+                             apply_overlapping_heuristic: bool = False) -> Tuple:
     """
-    label_dict in form and default:
-    label_dict = {1: 'healthy', 2: 'infested', 3: 'dead'}
+    Adjust predictions based on specified thresholds and overlapping heuristic.
+
+    Args:
+        predictions (list): 
+            List containing model predictions with bounding boxes, labels,
+            and scores.
+        threshold_dict (dict):
+            Dictionary mapping class labels to score thresholds.
+        label_dict (dict, optional):
+            Dictionary mapping integer class labels to class names.
+            Default is {1: 'healthy', 2: 'infested', 3: 'dead'}.
+        apply_overlapping_heuristic (bool, optional):
+            Flag to apply overlapping heuristic between classes.
+            Default is False.
+
+    Returns:
+        tuple:
+            A tuple containing a dictionary with adjusted predictions for 
+            each class and a list of tuples representing all adjusted
+            bounding boxes with labels and scores.
     """
     if label_dict is None:
         label_dict = {1: 'healthy', 2: 'infested', 3: 'dead'}
@@ -595,10 +624,22 @@ def get_adjusted_predictions(predictions, threshold_dict, label_dict=None):
         b, s, l = filter_boxes(res_dict[v]['boxes'],
                                res_dict[v]['scores'],
                                k,
-                               0.5)
+                               0.25)
         res_dict[v]['boxes'] = b
         res_dict[v]['scores'] = s
         res_dict[v]['labels'] = l
+    # apply heuristic for overlapping boxes between classes
+    if apply_overlapping_heuristic:
+        dict_healthy = copy.deepcopy(res_dict['healthy'])
+        dict_infested = copy.deepcopy(res_dict['infested'])
+        dict_dead = copy.deepcopy(res_dict['dead'])
+        dict_infested = pop_overlapping_boxes(dict_infested, dict_healthy, score_threshold=0.4)
+        dict_infested = pop_overlapping_boxes(dict_infested, dict_dead, score_threshold=0.7)
+        res_dict = {
+            'healthy' : dict_healthy,
+            'infested': dict_infested,
+            'dead': dict_dead
+        }
     # get an everything list again
     b = []; s = []; l = []
     for _, v in label_dict.items():
@@ -609,10 +650,21 @@ def get_adjusted_predictions(predictions, threshold_dict, label_dict=None):
     return res_dict, all_boxes
 
 
-def get_adjusted_ground_truth(ground_truth, rev_label_dict=None):
+def get_adjusted_ground_truth(ground_truth: list,
+                              rev_label_dict: dict = None) -> dict:
     """
-    rev_label_dict in form and default:
-    rev_label_dict = {'healthy': 1,'infested': 2, 'dead': 3}
+    Adjust ground truth based on class labels.
+
+    Args:
+        ground_truth (list): 
+            List containing ground truth information with bounding boxes and labels.
+        rev_label_dict (dict, optional):
+            Dictionary mapping class names to integer labels.
+            Default is {'healthy': 1, 'infested': 2, 'dead': 3}.
+
+    Returns:
+        dict:
+            A dictionary containing adjusted ground truth information for each class.
     """
     if rev_label_dict is None:
         rev_label_dict = {'healthy': 1,'infested': 2, 'dead': 3}
@@ -629,12 +681,30 @@ def get_adjusted_ground_truth(ground_truth, rev_label_dict=None):
     return gt_dict
 
 
-def precision_recall_f1score_detection(pred_boxes,
-                                       true_boxes,
-                                       iou_threshold):
+def precision_recall_f1score_detection(pred_boxes: list,
+                                       true_boxes: list,
+                                       iou_threshold: float) -> dict:
     """
-    return_metrics: if true returns tuple (precision, recall, f1_score)
-        if false returns tuple (tp, fp, fn)
+    Calculate precision, recall, and F1 score for object detection.
+
+    Args:
+        pred_boxes (list): 
+            List of predicted bounding boxes.
+        true_boxes (list): 
+            List of true bounding boxes.
+        iou_threshold (float): 
+            Intersection over Union (IoU) threshold for matching predicted
+            and true boxes.
+
+    Returns:
+        dict:
+            A dictionary containing the following metrics:
+                - 'tp' (int): True positives.
+                - 'fp' (int): False positives.
+                - 'fn' (int): False negatives.
+                - 'precision' (float): Precision score.
+                - 'recall' (float): Recall score.
+                - 'f1_score' (float): F1 score.
     """
     tb = copy.deepcopy(true_boxes)
     tp = 0
@@ -670,8 +740,27 @@ def precision_recall_f1score_detection(pred_boxes,
     return result_dict
 
 
-def filter_boxes(pred_boxes, scores, label, iou_threshold):
+def filter_boxes(pred_boxes: list,
+                 scores: list,
+                 label: int,
+                 iou_threshold: float) -> Tuple:
     """
+    Filter overlapping boxes based on the specified IoU threshold.
+
+    Args:
+        pred_boxes (list): 
+            List of predicted bounding boxes.
+        scores (list): 
+            List of corresponding confidence scores for the predicted boxes.
+        label (int): 
+            Class label for the boxes.
+        iou_threshold (float): 
+            Intersection over Union (IoU) threshold for filtering overlapping boxes.
+
+    Returns:
+        tuple:
+            A tuple containing lists of filtered bounding boxes, corresponding scores,
+            and labels.
     """
     # Combine predicted boxes and scores into a list of tuples
     box_with_scores = list(zip(pred_boxes, scores))
@@ -690,8 +779,10 @@ def filter_boxes(pred_boxes, scores, label, iou_threshold):
 
         for i, (box2, score2) in enumerate(box_with_scores):
             iou = compute_iou(box1, box2)
+            x = box_within(box1, box2)
+            y = box_within(box2, box1)
 
-            if iou >= iou_threshold:
+            if (iou >= iou_threshold) or x or y:
                 # Remove the box with the lower score
                 if score1 > score2:
                     boxes_to_remove.append(i)
@@ -709,22 +800,39 @@ def filter_boxes(pred_boxes, scores, label, iou_threshold):
     return filtered_boxes, filtered_scores, labels
 
 
-def plot_pred_vs_true(image_path,
-                      all_boxes_pred,
-                      all_boxes_ground_truth,
-                      label_dict=None,
-                      color_dict_1=None,
-                      color_dict_2=None,
-                      show=True,
-                      save_path=None):
+def plot_pred_vs_true(image_path: str,
+                      all_boxes_pred: list,
+                      all_boxes_ground_truth: list,
+                      label_dict: dict = None,
+                      color_dict_1: dict = None,
+                      color_dict_2: dict = None,
+                      show: bool = True,
+                      save_path: str = None) -> None:
     """
-    all_boxes_pred and all_boxes_ground_truth in form
-    list(tuple(box, label [score]))
-    
-    dicts in form and default:
-    label_dict = {1: 'healthy', 2: 'infested', 3: 'dead'}
-    color_dict_1 = {1: '#ffffff', 2: '#ffa500', 3: '#cb577a'}
-    color_dict_2 = {'healthy': '#ffffff', 'infested': '#ffa500', 'dead': '#cb577a'}
+    Plot side-by-side visualizations of predicted and ground truth bounding
+    boxes on an image.
+
+    Args:
+        image_path (str):
+            Path to the image file.
+        all_boxes_pred (list):
+            List of tuples containing predicted bounding boxes, labels,
+            and scores.
+        all_boxes_ground_truth (list):
+            List of tuples containing ground truth bounding boxes and labels.
+        label_dict (dict, optional):
+            Dictionary mapping class labels to class names.
+            Default is {1: 'healthy', 2: 'infested', 3: 'dead'}.
+        color_dict_1 (dict, optional):
+            Dictionary mapping class labels to colors for predicted boxes.
+            Default is {1: '#ffffff', 2: '#ffa500', 3: '#cb577a'}.
+        color_dict_2 (dict, optional):
+            Dictionary mapping class names to colors for ground truth boxes.
+            Default is {'healthy': '#ffffff', 'infested': '#ffa500', 'dead': '#cb577a'}.
+        show (bool, optional):
+            Flag indicating whether to display the plot. Default is True.
+        save_path (str, optional):
+            If specified, the plot will be saved to this file path.
     """
     if label_dict is None:
         label_dict = {1: 'healthy', 2: 'infested', 3: 'dead'}
@@ -773,3 +881,62 @@ def plot_pred_vs_true(image_path,
         fig.savefig(save_path)
     if not show:
         plt.close(fig)
+
+
+def box_within(box1: Tuple,
+               box2: Tuple) -> bool:
+    """
+    Check if the first bounding box is completely contained within the second bounding box.
+
+    Args:
+        box1 (tuple):
+            Coordinates (x_min, y_min, x_max, y_max) of the first bounding box.
+        box2 (tuple):
+            Coordinates (x_min, y_min, x_max, y_max) of the second bounding box.
+
+    Returns:
+        bool:
+            True if box1 is completely contained within box2, False otherwise.
+    """
+    return box1[0] >= box2[0] and box1[1] >= box2[1] and box1[2] <= box2[2] and box1[3] <= box2[3]
+
+
+def pop_overlapping_boxes(dict_infested: dict,
+                          dict_other: dict,
+                          score_threshold: float) -> dict:
+    """
+    Remove overlapping boxes in dict_infested based on overlap with dict_other.
+
+    Args:
+        dict_infested (dict):
+            Dictionary containing 'boxes', 'scores', and 'labels' lists for infested class.
+        dict_other (dict):
+            Dictionary containing 'boxes', 'scores', and 'labels' lists for another class.
+        score_threshold (float):
+            Score threshold for retaining infested boxes.
+
+    Returns:
+        dict:
+            Dictionary with non-overlapping infested boxes based on the given score threshold.
+    """
+    new_dict_infested = {'boxes': [], 'scores': [], 'labels': []}
+    
+    for box_inf, score_inf, label_inf in list(zip(dict_infested['boxes'], dict_infested['scores'], dict_infested['labels'])):
+        keep_flag = True
+        for box, score, label in list(zip(dict_other['boxes'], dict_other['scores'], dict_other['labels'])):
+
+            overlap = ((compute_iou(box_inf, box) >= 0.5) or
+                        box_within(box_inf, box) or
+                        box_within(box, box_inf))
+            score = score_inf / score
+
+            if (overlap and (score < score_threshold)):
+                keep_flag = False
+
+        if keep_flag:
+            new_dict_infested['boxes'].append(box_inf)
+            new_dict_infested['scores'].append(score_inf)
+            new_dict_infested['labels'].append(label_inf)
+
+    return new_dict_infested
+

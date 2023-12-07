@@ -1,4 +1,5 @@
-"""
+"""Module for utility and helper functions during the segmentation prediction
+and model training phase.
 """
 
 import torch
@@ -24,8 +25,51 @@ def create_dataloader(data_directory: str,
                       train_val_split: float = 0.8,
                       resize_to: Tuple = (512, 512),
                       train_transforms: Any = None,
-                      validation_transforms: Any = None):
+                      validation_transforms: Any = None) -> Tuple:
     """
+    Create PyTorch data loaders for training and validation from a directory of
+    3D segmentation data.
+
+    Args:
+        data_directory (str):
+            Path to the root directory of the dataset.
+        train_images (list or str, optional):
+            List of specific data folders to include in the training set. If not
+            provided, the training set will be generated based on 'random_train_val'
+            and 'train_val_split'.
+            Default is None.
+        validation_images (list or str, optional):
+            List of specific data folders to include in the validation set. If
+            not provided, the validation set will be generated based on
+            'random_train_val' and 'train_val_split'.
+            Default is None.
+        test_images (list or str, optional):
+            List of specific data folders to include in the test set.
+            Default is None.
+        random_train_val (bool, optional):
+            If True, randomly split the data into training and validation sets
+            based on 'train_val_split'. If False, use the provided 'train_images'
+            and 'validation_images' lists for training and validation.
+            Default is False.
+        train_val_split (float, optional):
+            Fraction of the data to be used for training if 'random_train_val'
+            is True.
+            Default is 0.8.
+        resize_to (Tuple, optional):
+            Tuple specifying the target size for resizing images in the format
+            (height, width).
+            Default is (512, 512).
+        train_transforms (Any, optional):
+            Augmentation transforms to be applied to the training set.
+            Default is None.
+        validation_transforms (Any, optional):
+            Augmentation transforms to be applied to the validation set.
+            Default is None.
+
+    Returns:
+        Tuple[DataLoader, DataLoader]:
+            Tuple containing the PyTorch data loaders for training and
+            validation sets.
     """
     if random_train_val and (train_images or validation_images):
         raise ValueError(f"""Cannot specify values and random split.""")
@@ -77,8 +121,23 @@ def create_dataloader(data_directory: str,
     return train_loader, validation_loader
 
 
-def pixel_accuracy(pred, mask):
+def pixel_accuracy(pred: torch.Tensor,
+                   mask: torch.Tensor) -> float:
     """
+    Compute pixel accuracy between predicted segmentation and ground truth mask.
+
+    Args:
+        pred (torch.Tensor):
+            Predicted segmentation map with shape (batch_size, num_classes,
+            height, width). If the predictions are one-hot encoded, the
+            function will use argmax to obtain class labels.
+        mask (torch.Tensor):
+            Ground truth mask with shape (batch_size, height, width).
+
+    Returns:
+        float:
+            Pixel accuracy, defined as the ratio of correctly classified
+            pixels to the total number of pixels.
     """
     if not pred.shape == mask.shape:
         pred = torch.argmax(pred, dim=1)
@@ -88,22 +147,27 @@ def pixel_accuracy(pred, mask):
     return acc
 
 
-def jaccard_accuracy(pred: torch.tensor, mask):
-    """Returns accuracy for class 0, 1, 2, ...
-    """ 
-    if not pred.shape == mask.shape:
-        pred = torch.argmax(pred, dim=1)
-    pred = pred.cpu().flatten().numpy()
-    mask = mask.cpu().flatten().numpy()
-    jaccard = jaccard_score(pred, mask, average=None)
-    return jaccard
-
-
 def evaluate_segmentation_accuracy(model: torch.nn.Module,
                                    data_loader: torch.utils.data.DataLoader,
                                    device: torch.device,
                                    loss_fn: torch.nn.modules.loss) -> Tuple:
     """
+    Evaluate segmentation accuracy of a model on a given data loader.
+
+    Args:
+        model (torch.nn.Module):
+            Segmentation model to evaluate.
+        data_loader (torch.utils.data.DataLoader):
+            DataLoader providing batches of data for evaluation.
+        device (torch.device):
+            Device on which to perform the evaluation (e.g., 'cuda' or 'cpu').
+        loss_fn (torch.nn.modules.loss):
+            Loss function to compute during evaluation.
+
+    Returns:
+        Tuple[float, float, pd.DataFrame]:
+            Tuple containing the average loss, pixel accuracy, and a DataFrame
+            with class-wise metrics (precision, recall, and F1-score).
     """
     with torch.no_grad():
         # move model to device
@@ -144,6 +208,37 @@ def write_out_results(output_directory: str,
                       learning_rate_scheduler: torch.optim.lr_scheduler.StepLR = None,
                       model: torch.nn.Module = None) -> None:
     """
+    Write out training and validation results, metrics, and model-related
+    information.
+
+    Args:
+        output_directory (str):
+            Directory where results will be saved.
+        run_name (str):
+            Name of the run or experiment.
+        training_loss (list, optional):
+            List containing training loss values for each epoch.
+        validation_loss (list, optional):
+            List containing validation loss values for each epoch.
+        training_pixel_acc (list, optional):
+            List containing training pixel accuracy values for each epoch.
+        validation_pixel_acc (list, optional):
+            List containing validation pixel accuracy values for each epoch.
+        training_metrics_df (pd.DataFrame, optional):
+            DataFrame containing training metrics (precision, recall, F1-score)
+            for each class.
+        validation_metrics_df (pd.DataFrame, optional):
+            DataFrame containing validation metrics (precision, recall, F1-score)
+            for each class.
+        optimizer (torch.optim.Optimizer, optional):
+            Optimizer used for training the model.
+        learning_rate_scheduler (torch.optim.lr_scheduler.StepLR, optional):
+            Learning rate scheduler used during training.
+        model (torch.nn.Module, optional):
+            Trained segmentation model.
+
+    Returns:
+        None: Results are saved to the specified output directory.
     """
     # generate output directory
     save_direc = os.path.join(os.getcwd(), output_directory, run_name)
@@ -212,6 +307,21 @@ def precision_recall_f1score(true_mask: np.array,
                              pred_mask: np.array,
                              class_translation_dict: dict = {0: 'background', 1: 'healthy', 2: 'infested', 3: 'dead'}) -> pd.DataFrame:
     """
+    Calculate precision, recall, and F1-score for each class in a segmentation task.
+
+    Args:
+        true_mask (np.array):
+            Ground truth segmentation mask.
+        pred_mask (np.array):
+            Predicted segmentation mask.
+        class_translation_dict (dict, optional):
+            Dictionary to translate class labels to corresponding names.
+            Defaults to {0: 'background', 1: 'healthy', 2: 'infested', 3: 'dead'}.
+
+    Returns:
+        pd.DataFrame:
+            DataFrame containing precision, recall, and F1-score for each class,
+            along with other metrics.
     """
     classes = np.sort(np.unique(true_mask))
     result_dict = {'metric': ['no_pixels', 'share_pixels', 'precision', 'recall', 'f1_score']}

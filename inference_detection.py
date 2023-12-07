@@ -1,4 +1,7 @@
-"""
+"""Script for Inference on Detection Models.
+
+The CSV file './inference_detection_model_list.csv' should include columns:
+location_id, model, epoch.
 """
 print(f"""Load Modules and Configuration. This might take a while.""")
 
@@ -24,8 +27,8 @@ for run in runs:
     print(run)
     
     f = os.listdir('Output/' + run + '/')
-    if 'Inference' in f:
-        f2 = os.listdir('Output/' + run + '/' + 'Inference')
+    if 'Inference_v2' in f:
+        f2 = os.listdir('Output/' + run + '/' + 'Inference_v2')
         if 'overall_result_df.csv' in f2:
             print('Skip')
             continue
@@ -37,21 +40,20 @@ for run in runs:
 
 
     ######## CONFIG ########
-    test_location_id = location_oi # 'Haiterbach_loc1'
-    run = run + '/' # '20230824_0916_test_all_FRCNN_resnet/'
-    model = model # 'epoch_48_model.pth'
-    all = False # all images and test images used
+    test_location_id = location_oi
+    run = run + '/' 
+    model = model 
+    all = False 
     run_path = 'Output/' + run
-    save_path = run_path + 'Inference/'
+    save_path = run_path + 'Inference_v2/'
     img_save_path = save_path + 'PredictionImages/'
     image_path = 'Data/ProcessedImages/'
     bbox_path = 'Data/ProcessedImages/'
-    #image_path = 'C:/Users/leona/Documents/06_MasterThesis/Data/BackUp/Backup_2023-11-23/ProcessedImages/'
-    #bbox_path = 'C:/Users/leona/Documents/06_MasterThesis/Data/BackUp/Backup_2023-11-23/ProcessedImages/'
     img_format = '.png'
     bbox_format = '.xml'
     classes = ['healthy', 'infested', 'dead']
     threshold_dict = {'healthy': 0.5, 'infested': 0.1, 'dead': 0.5}
+    overlapping_heuristic = True
     ######## CONFIG ########
     
 
@@ -111,7 +113,8 @@ for run in runs:
             predictions = model(image)
 
         # adjust predictions and ground truth
-        pred_dict, pred_all_boxes = get_adjusted_predictions(predictions, threshold_dict=threshold_dict)
+        pred_dict, pred_all_boxes = get_adjusted_predictions(predictions, threshold_dict=threshold_dict,
+                                                             apply_overlapping_heuristic=overlapping_heuristic)
         gt_dict = get_adjusted_ground_truth(ground_truth)
 
         # evaluate prediction
