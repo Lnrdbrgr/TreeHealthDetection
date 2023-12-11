@@ -17,6 +17,6 @@ Detection and classification was reached with F1-Scores of up to 0.63 and 0.59 o
 
 # Working with the Code
 
-The code consists of two main scripts for model training (train_engine_detection.py and train_engine_segmentation.py) that can be run from the command line with the specified configurations. The training scripts create an output folder with corresponding models and training details. Once the training is finished, inference scripts (inference_detection.py and inference_segmentation.py) can be run to evaluate the model on the test set. Data is not shared in this repository but can be made available under certain conditions. Please reach out for comments and discussions!
+The code consists of two main scripts for model training (train_engine_detection.py and train_engine_segmentation.py) that can be run from the command line with the specified configurations. The training scripts create an output folder with corresponding models and training details. Once the training is finished, inference scripts (inference_detection.py and inference_segmentation.py) can be run to evaluate the model on the test set. Data is not shared in this repository but can be made available under certain conditions. Please reach out for comments and discussions or if you are interested in the research paper!
 
 
